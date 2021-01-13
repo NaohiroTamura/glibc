@@ -33,6 +33,9 @@ extern __typeof (__redirect_memcpy) __memcpy_simd attribute_hidden;
 extern __typeof (__redirect_memcpy) __memcpy_thunderx attribute_hidden;
 extern __typeof (__redirect_memcpy) __memcpy_thunderx2 attribute_hidden;
 extern __typeof (__redirect_memcpy) __memcpy_falkor attribute_hidden;
+#if HAVE_SVE_ASM_SUPPORT
+extern __typeof (__redirect_memcpy) __memcpy_a64fx attribute_hidden;
+#endif
 
 libc_ifunc (__libc_memcpy,
             (IS_THUNDERX (midr)
@@ -44,8 +47,13 @@ libc_ifunc (__libc_memcpy,
 		  : (IS_NEOVERSE_N1 (midr) || IS_NEOVERSE_N2 (midr)
 		     || IS_NEOVERSE_V1 (midr)
 		     ? __memcpy_simd
-		     : __memcpy_generic)))));
-
+#if HAVE_SVE_ASM_SUPPORT
+                     : (IS_A64FX (midr)
+                        ? __memcpy_a64fx
+                        : __memcpy_generic))))));
+#else
+                     : __memcpy_generic)))));
+#endif
 # undef memcpy
 strong_alias (__libc_memcpy, memcpy);
 #endif

@@ -11,7 +11,7 @@ else
 CFLAGS="$CFLAGS -mlong-double-128"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-#include <float.h>
+#include <float.h>[]
 int
 main ()
 {

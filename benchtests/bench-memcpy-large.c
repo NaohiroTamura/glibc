@@ -25,7 +25,10 @@
 # define TIMEOUT (20 * 60)
 # include "bench-string.h"
 
+void *generic_memcpy (void *, const void *, size_t);
+
 IMPL (memcpy, 1)
+IMPL (generic_memcpy, 0)
 #endif
 
 #include "json-lib.h"
@@ -124,3 +127,9 @@ test_main (void)
 }
 
 #include <support/test-driver.c>
+
+#define libc_hidden_builtin_def(X)
+#undef MEMCPY
+#define MEMCPY generic_memcpy
+#include <string/memcpy.c>
+#include <string/wordcopy.c>

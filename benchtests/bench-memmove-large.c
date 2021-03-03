@@ -25,7 +25,10 @@
 #include "bench-string.h"
 #include "json-lib.h"
 
+void *generic_memmove (void *, const void *, size_t);
+
 IMPL (memmove, 1)
+IMPL (generic_memmove, 0)
 
 typedef char *(*proto_t) (char *, const char *, size_t);
 
@@ -123,3 +126,9 @@ test_main (void)
 }
 
 #include <support/test-driver.c>
+
+#define libc_hidden_builtin_def(X)
+#undef MEMMOVE
+#define MEMMOVE generic_memmove
+#include <string/memmove.c>
+#include <string/wordcopy.c>

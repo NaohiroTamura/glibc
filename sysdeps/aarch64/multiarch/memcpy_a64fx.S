@@ -172,6 +172,7 @@ L(L2_vl_64): // VL64 unroll8
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
+    .p2align 3
 1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
@@ -231,6 +232,7 @@ L(L2_vl_32): // VL32 unroll6
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     sub         rest, rest, CACHE_LINE_SIZE
+    .p2align 3
 1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
@@ -317,6 +319,7 @@ L(L2_vl_16): // VL16 unroll32
     ld1b        z7.b,  p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE
+    .p2align 3
 1:  add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     st1b        z16.b, p0,   [dest_ptr, #-8, mul vl]
@@ -440,6 +443,7 @@ L(L1_vl_64):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
+    .p2align 3
 1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
@@ -494,6 +498,7 @@ L(L1_vl_32):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     sub         rest, rest, CACHE_LINE_SIZE
+    .p2align 3
 1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
@@ -575,6 +580,7 @@ L(L1_vl_16):
     ld1b        z7.b,  p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE
+    .p2align 3
 1:  add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     st1b        z16.b, p0,   [dest_ptr, #-8, mul vl]
@@ -676,115 +682,160 @@ L(L1_vl_16):
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
 
 L(vl_agnostic): // VL Agnostic
-
+    .p2align 3
 L(unroll32): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
     lsl         tmp2, vector_length, 5  // vector_length * 32
     ptrue       p0.b
-    .p2align 3
-1:  cmp         rest, tmp2
+    cmp         rest, tmp2
     b.cc        L(unroll8)
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
     ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
     ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
     ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
     ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    add         dest_ptr, dest_ptr, tmp1
     add         src_ptr, src_ptr, tmp1
+    sub         rest, rest, tmp1
+    cmp         rest, tmp2
+    b.cc        2f
+    .p2align 3
+1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
     ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
     st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         dest_ptr, dest_ptr, tmp1
     add         src_ptr, src_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
     st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         dest_ptr, dest_ptr, tmp1
     add         src_ptr, src_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
     st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
+    add         dest_ptr, dest_ptr, tmp1
+    add         src_ptr, src_ptr, tmp1
+    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         dest_ptr, dest_ptr, tmp1
     add         src_ptr, src_ptr, tmp1
     sub         rest, rest, tmp2
-    b           1b
+    cmp         rest, tmp2
+    b.ge        1b
+2:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    add         dest_ptr, dest_ptr, tmp1
 
 L(unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
     ptrue       p0.b
     .p2align 3
-1:  cmp         rest, tmp1
+    cmp         rest, tmp1
     b.cc        L(unroll1)
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
     ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
     ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
     ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
     ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
+    add         src_ptr, src_ptr, tmp1
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.cc        2f
+    .p2align 3
+1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         dest_ptr, dest_ptr, tmp1
     add         src_ptr, src_ptr, tmp1
     sub         rest, rest, tmp1
-    b           1b
+    cmp         rest, tmp1
+    b.ge        1b
+2:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    add         dest_ptr, dest_ptr, tmp1
 
  L(unroll1):
     ptrue       p0.b
@@ -798,6 +849,7 @@ L(unroll8): // unrolling and software pipeline
     sub         rest, rest, vector_length
     b           1b
 
+    .p2align 3
 L(last):
     whilelt     p0.b, xzr, rest
     ld1b        z0.b, p0/z, [src_ptr]
@@ -841,120 +893,165 @@ L(bwd_start):
     sub         rest, rest, vl_remainder
 
 L(bwd_main):
-
+    .p2align 3
     // VL Agnostic
 L(bwd_unroll32): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
     lsl         tmp2, vector_length, 5  // vector_length * 32
     ptrue       p0.b
-    .p2align 3
-1:  cmp         rest, tmp2
+    cmp         rest, tmp2
     b.cc        L(bwd_unroll8)
     sub         src_ptr, src_ptr, tmp1
-    sub         dest_ptr, dest_ptr, tmp1
     ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
     ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
     ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
     ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
     ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
     ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
     ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    sub         rest, rest, tmp1
+    cmp         rest, tmp2
+    b.cc        2f
+    .p2align 3
+1:  sub         src_ptr, src_ptr, tmp1
+    sub         dest_ptr, dest_ptr, tmp1
+    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
     sub         src_ptr, src_ptr, tmp1
     sub         dest_ptr, dest_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
     st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
     st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
     sub         src_ptr, src_ptr, tmp1
     sub         dest_ptr, dest_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
     st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
     st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
     sub         src_ptr, src_ptr, tmp1
     sub         dest_ptr, dest_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
     st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
     st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
     sub         rest, rest, tmp2
-    b           1b
+    cmp         rest, tmp2
+    b.ge        1b
+2:  sub         dest_ptr, dest_ptr, tmp1
+    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
 
 L(bwd_unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
     ptrue       p0.b
     .p2align 3
-1:  cmp         rest, tmp1
+    cmp         rest, tmp1
     b.cc        L(bwd_unroll1)
     sub         src_ptr, src_ptr, tmp1
-    sub         dest_ptr, dest_ptr, tmp1
     ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
     ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
     ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
     ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
     ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
     ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
     ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.cc        2f
+    .p2align 3
+1:  sub         src_ptr, src_ptr, tmp1
+    sub         dest_ptr, dest_ptr, tmp1
+    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
     sub         rest, rest, tmp1
-    b           1b
+    cmp         rest, tmp1
+    b.ge        1b
+2:  sub         dest_ptr, dest_ptr, tmp1
+    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
 
-    .p2align 3
 L(bwd_unroll1):
     ptrue       p0.b
+    .p2align 3
 1:  cmp         rest, vector_length
     b.cc        L(bwd_last)
     sub         src_ptr, src_ptr, vector_length
@@ -964,6 +1061,7 @@ L(bwd_unroll1):
     sub         rest, rest, vector_length
     b           1b
 
+    .p2align 3
 L(bwd_last):
     whilelt     p0.b, xzr, rest
     sub         src_ptr, src_ptr, rest

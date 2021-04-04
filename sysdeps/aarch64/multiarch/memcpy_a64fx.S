@@ -182,12 +182,12 @@ L(L2_vl_64): // VL64 unroll8
     ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
     ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
     mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dest_ptr, tmp1]
-    mov         tmp2, CACHE_LINE_SIZE * 19
+    prfm        pldl2keep, [src_ptr, tmp1]
+    mov         tmp2, CACHE_LINE_SIZE * 18
     add         tmp2, dest_ptr, tmp2
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 18
     st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
     ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
@@ -197,15 +197,15 @@ L(L2_vl_64): // VL64 unroll8
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 20
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L2_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
@@ -250,12 +250,12 @@ L(L2_vl_32): // VL32 unroll6
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dest_ptr, tmp1]
-    mov         tmp2, CACHE_LINE_SIZE * 19
+    prfm        pldl2keep, [src_ptr, tmp1]
+    mov         tmp2, CACHE_LINE_SIZE * 18
     add         tmp2, dest_ptr, tmp2
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 18
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
@@ -275,15 +275,15 @@ L(L2_vl_32): // VL32 unroll6
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 20
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L2_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
@@ -355,12 +355,12 @@ L(L2_vl_16): // VL16 unroll32
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dest_ptr, tmp1]
-    mov         tmp2, CACHE_LINE_SIZE * 19
+    prfm        pldl2keep, [src_ptr, tmp1]
+    mov         tmp2, CACHE_LINE_SIZE * 18
     add         tmp2, dest_ptr, tmp2
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 18
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     st1b        z16.b, p0,   [dest_ptr, #-8, mul vl]
@@ -396,15 +396,15 @@ L(L2_vl_16): // VL16 unroll32
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 20
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L2_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     st1b        z16.b, p0, [dest_ptr, #-8, mul vl]
@@ -443,6 +443,8 @@ L(L1_vl_64):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
+    cmp         rest, CACHE_LINE_SIZE * 2
+    b.cc        2f
     .p2align 3
 1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
@@ -454,8 +456,10 @@ L(L1_vl_64):
     ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
     mov         tmp1, PF_DIST_L1
     prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2
     prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
     ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
@@ -466,14 +470,16 @@ L(L1_vl_64):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
     prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
     prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L1_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+2:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
@@ -498,6 +504,8 @@ L(L1_vl_32):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     sub         rest, rest, CACHE_LINE_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
+    b.cc        2f
     .p2align 3
 1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
@@ -517,8 +525,10 @@ L(L1_vl_32):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1
     prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2
     prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
@@ -539,14 +549,16 @@ L(L1_vl_32):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
     prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
     prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L1_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+2:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
@@ -580,6 +592,8 @@ L(L1_vl_16):
     ld1b        z7.b,  p0/z, [src_ptr,  #7, mul vl]
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
+    b.cc        2f
     .p2align 3
 1:  add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
@@ -617,8 +631,10 @@ L(L1_vl_16):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1
     prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2
     prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     st1b        z16.b, p0,   [dest_ptr, #-8, mul vl]
@@ -655,15 +671,17 @@ L(L1_vl_16):
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
     prfm        pstl1keep, [dest_ptr, tmp1]
+    prfm        pldl1keep, [src_ptr, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
     prfm        pstl2keep, [dest_ptr, tmp1]
+    prfm        pldl2keep, [src_ptr, tmp1]
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L1_SIZE
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
-    st1b        z16.b, p0, [dest_ptr, #-8, mul vl]
+2:  st1b        z16.b, p0, [dest_ptr, #-8, mul vl]
     st1b        z17.b, p0, [dest_ptr, #-7, mul vl]
     st1b        z18.b, p0, [dest_ptr, #-6, mul vl]
     st1b        z19.b, p0, [dest_ptr, #-5, mul vl]
@@ -682,110 +700,6 @@ L(L1_vl_16):
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
 
 L(vl_agnostic): // VL Agnostic
-    .p2align 3
-L(unroll32): // unrolling and software pipeline
-    lsl         tmp1, vector_length, 3  // vector_length * 8
-    lsl         tmp2, vector_length, 5  // vector_length * 32
-    ptrue       p0.b
-    cmp         rest, tmp2
-    b.cc        L(unroll8)
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
-    add         src_ptr, src_ptr, tmp1
-    sub         rest, rest, tmp1
-    cmp         rest, tmp2
-    b.cc        2f
-    .p2align 3
-1:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
-    add         dest_ptr, dest_ptr, tmp1
-    add         src_ptr, src_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
-    add         dest_ptr, dest_ptr, tmp1
-    add         src_ptr, src_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
-    add         dest_ptr, dest_ptr, tmp1
-    add         src_ptr, src_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
-    add         dest_ptr, dest_ptr, tmp1
-    add         src_ptr, src_ptr, tmp1
-    sub         rest, rest, tmp2
-    cmp         rest, tmp2
-    b.ge        1b
-2:  st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    add         dest_ptr, dest_ptr, tmp1
 
 L(unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8

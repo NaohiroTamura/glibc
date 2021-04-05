@@ -54,14 +54,15 @@ ENTRY_ALIGN (MEMCPY, 6)
     PTR_ARG (0)
     SIZE_ARG (2)
 
-L(fwd_start):
+L(memcpy):
+    // remove tag address
+    and         tmp1, dest, 0xffffffffffffff
+    and         tmp2, src, 0xffffffffffffff
     cmp         n, 0
-    ccmp        dest, src, 4, ne
-    b.ne        L(init)
+    ccmp        tmp1, tmp2, 4, ne
+    b.ne        1f
     ret
-
-L(init):
-    mov         rest, n
+1:  mov         rest, n
     mov         dest_ptr, dest
     mov         src_ptr, src
     cntb        vector_length
@@ -780,191 +781,83 @@ ENTRY_ALIGN (MEMMOVE, 6)
     // remove tag address
     and         tmp1, dest, 0xffffffffffffff
     and         tmp2, src, 0xffffffffffffff
-    sub         tmp1, tmp1, tmp2         // diff
-    // if diff <= 0 || diff >= n then memcpy
-    cmp         tmp1, 0
-    ccmp        tmp1, n, 2, gt
-    b.cs        L(fwd_start)
-
-L(bwd_start):
-    mov         rest, n
-    add         dest_ptr, dest, n       // dest_end
-    add         src_ptr, src, n         // src_end
+    cmp         n, 0
+    ccmp        tmp1, tmp2, 4, ne
+    b.ne        1f
+    ret
+1:  mov         rest, n
     cntb        vector_length
     ptrue       p0.b
-    udiv        tmp1, n, vector_length          // quotient
-    mul         tmp1, tmp1, vector_length       // product
-    sub         vl_remainder, n, tmp1
-    // if bwd_remainder == 0 then skip vl_remainder bwd copy
-    cmp         vl_remainder, 0
-    b.eq        L(bwd_main)
-    // vl_remainder bwd copy
-    whilelt     p0.b, xzr, vl_remainder
-    sub         src_ptr, src_ptr, vl_remainder
-    sub         dest_ptr, dest_ptr, vl_remainder
-    ld1b        z0.b, p0/z, [src_ptr]
-    st1b        z0.b, p0, [dest_ptr]
-    sub         rest, rest, vl_remainder
+    // tmp1 = dest - src
+    sub         tmp1, tmp1, tmp2
+    // tmp2 = src - dest
+    neg         tmp2, tmp1
+    cmp         tmp1, 0
+    b.gt        1f
+    // if src - dest > 0 and
+    // if src - dest >= n then memcpy else L(fwd_start)
+    cmp         tmp2, n
+    b.cs        L(memcpy)
+    b           L(fwd_start)
+    // if dest - src >= 0 and
+    // if dest - src >= n then memcpy else L(bwd_start)
+1:  cmp         tmp1, n
+    b.cs        L(memcpy)
 
-L(bwd_main):
-    .p2align 3
-    // VL Agnostic
-L(bwd_unroll32): // unrolling and software pipeline
-    lsl         tmp1, vector_length, 3  // vector_length * 8
-    lsl         tmp2, vector_length, 5  // vector_length * 32
-    ptrue       p0.b
-    cmp         rest, tmp2
-    b.cc        L(bwd_unroll8)
-    sub         src_ptr, src_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
-    sub         rest, rest, tmp1
-    cmp         rest, tmp2
-    b.cc        2f
-    .p2align 3
-1:  sub         src_ptr, src_ptr, tmp1
-    sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
-    sub         src_ptr, src_ptr, tmp1
-    sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
-    sub         src_ptr, src_ptr, tmp1
-    sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
-    sub         src_ptr, src_ptr, tmp1
-    sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
-    sub         rest, rest, tmp2
-    cmp         rest, tmp2
-    b.ge        1b
-2:  sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+L(bwd_start):
+    add         dest_ptr, dest, n       // dest_end
+    add         src_ptr, src, n         // src_end
 
 L(bwd_unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
-    ptrue       p0.b
     .p2align 3
     cmp         rest, tmp1
     b.cc        L(bwd_unroll1)
     sub         src_ptr, src_ptr, tmp1
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     sub         rest, rest, tmp1
     cmp         rest, tmp1
     b.cc        2f
     .p2align 3
 1:  sub         src_ptr, src_ptr, tmp1
     sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    ld1b        z0.b, p0/z, [src_ptr,  #7, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #5, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    ld1b        z4.b, p0/z, [src_ptr,  #3, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr,  #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z7.b, p0/z, [src_ptr,  #0, mul vl]
+    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
+    ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
+    ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
+    ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
+    ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     sub         rest, rest, tmp1
     cmp         rest, tmp1
     b.ge        1b
 2:  sub         dest_ptr, dest_ptr, tmp1
-    st1b        z0.b, p0,   [dest_ptr, #7, mul vl]
-    st1b        z1.b, p0,   [dest_ptr, #6, mul vl]
-    st1b        z2.b, p0,   [dest_ptr, #5, mul vl]
-    st1b        z3.b, p0,   [dest_ptr, #4, mul vl]
-    st1b        z4.b, p0,   [dest_ptr, #3, mul vl]
-    st1b        z5.b, p0,   [dest_ptr, #2, mul vl]
-    st1b        z6.b, p0,   [dest_ptr, #1, mul vl]
-    st1b        z7.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
+    st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
+    st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
+    st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
+    st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
+    st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
 
 L(bwd_unroll1):
-    ptrue       p0.b
     .p2align 3
 1:  cmp         rest, vector_length
     b.cc        L(bwd_last)
@@ -983,6 +876,11 @@ L(bwd_last):
     ld1b        z0.b, p0/z, [src_ptr]
     st1b        z0.b, p0, [dest_ptr]
     ret
+
+L(fwd_start):
+    mov         dest_ptr, dest
+    mov         src_ptr, src
+    b           L(vl_agnostic)
 
 END (MEMMOVE)
 libc_hidden_builtin_def (MEMMOVE)

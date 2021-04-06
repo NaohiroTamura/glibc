@@ -69,14 +69,10 @@ L(memcpy):
     ptrue       p0.b
 
 L(L2):
-    // get block_size
-    mrs         tmp1, dczid_el0
-    cmp         tmp1, 6         // CACHE_LINE_SIZE 256
-    b.ne        L(vl_agnostic)
-
     // if rest >= L2_SIZE
     cmp         rest, L2_SIZE
     b.cc        L(L1_prefetch)
+
     // align dest address at vector_length byte boundary
     sub         tmp1, vector_length, 1
     and         tmp2, dest_ptr, tmp1
@@ -766,10 +762,12 @@ L(unroll8): // unrolling and software pipeline
 
     .p2align 3
 L(last):
+    cmp         rest, 0
+    b.eq        1f
     whilelt     p0.b, xzr, rest
     ld1b        z0.b, p0/z, [src_ptr]
     st1b        z0.b, p0, [dest_ptr]
-    ret
+1:  ret
 
 END (MEMCPY)
 libc_hidden_builtin_def (MEMCPY)

@@ -130,14 +130,10 @@ L(set_long):
     ret
 
 L(L2):
-    // get block_size
-    mrs         tmp1, dczid_el0
-    cmp         tmp1, 6         // CACHE_LINE_SIZE 256
-    b.ne        L(vl_agnostic)
-
     // if rest >= L2_SIZE
     cmp         rest, L2_SIZE
     b.cc        L(L1_prefetch)
+
     // align dst address at vector_length byte boundary
     sub         tmp1, vector_length, 1
     and         tmp2, dst, tmp1
@@ -203,40 +199,35 @@ L(L2_dc_zva): // unroll zero fill
     add         tmp1, tmp1, CACHE_LINE_SIZE
     dc          zva, tmp1               // 17
     add         tmp1, tmp1, CACHE_LINE_SIZE
-    dc          zva, tmp1               // 18
-    add         tmp1, tmp1, CACHE_LINE_SIZE
-    dc          zva, tmp1               // 19
-    add         tmp1, tmp1, CACHE_LINE_SIZE
-    dc          zva, tmp1               // 20
 
 L(L2_vl_64): // VL64 unroll8
     cmp         vector_length, 64
     b.ne        L(L2_vl_32)
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
     st1b        {z0.b}, p0, [dst, #2, mul vl]
     st1b        {z0.b}, p0, [dst, #3, mul vl]
-    mov         tmp2, CACHE_LINE_SIZE * 20
+    mov         tmp2, CACHE_LINE_SIZE * 18
     add         tmp2, dst, tmp2
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 20
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 18
     st1b        {z0.b}, p0, [dst, #4, mul vl]
     st1b        {z0.b}, p0, [dst, #5, mul vl]
     st1b        {z0.b}, p0, [dst, #6, mul vl]
     st1b        {z0.b}, p0, [dst, #7, mul vl]
     add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 21
-    add         dst, dst, 512
-    sub         rest, rest, 512
-    cmp         rest, L2_SIZE
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
+    add         dst, dst, CACHE_LINE_SIZE * 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
 
 L(L2_vl_32): // VL32 unroll6
     cmp         vector_length, 32
     b.ne        L(L2_vl_16)
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
     st1b        {z0.b}, p0, [dst, #2, mul vl]
@@ -245,9 +236,9 @@ L(L2_vl_32): // VL32 unroll6
     st1b        {z0.b}, p0, [dst, #5, mul vl]
     st1b        {z0.b}, p0, [dst, #6, mul vl]
     st1b        {z0.b}, p0, [dst, #7, mul vl]
-    mov         tmp2, CACHE_LINE_SIZE * 21
+    mov         tmp2, CACHE_LINE_SIZE * 18
     add         tmp2, dst, tmp2
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 21
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 18
     add         dst, dst, CACHE_LINE_SIZE
     st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
@@ -258,18 +249,18 @@ L(L2_vl_32): // VL32 unroll6
     st1b        {z0.b}, p0, [dst, #6, mul vl]
     st1b        {z0.b}, p0, [dst, #7, mul vl]
     add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 22
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
     add         dst, dst, CACHE_LINE_SIZE
-    sub         rest, rest, 512
-    cmp         rest, L2_SIZE
+    sub         rest, rest, CACHE_LINE_SIZE * 2
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
 
 L(L2_vl_16):  // VL16 unroll32
     cmp         vector_length, 16
     b.ne        L(L1_prefetch)
     ptrue       p0.b
-    .p2align 4
-1:  add         dst, dst, 128
+    .p2align 3
+1:  add         dst, dst, CACHE_LINE_SIZE / 2
     st1b        {z0.b}, p0, [dst, #-8, mul vl]
     st1b        {z0.b}, p0, [dst, #-7, mul vl]
     st1b        {z0.b}, p0, [dst, #-6, mul vl]
@@ -286,9 +277,9 @@ L(L2_vl_16):  // VL16 unroll32
     st1b        {z0.b}, p0, [dst, #5, mul vl]
     st1b        {z0.b}, p0, [dst, #6, mul vl]
     st1b        {z0.b}, p0, [dst, #7, mul vl]
-    mov         tmp2, CACHE_LINE_SIZE * 20
+    mov         tmp2, CACHE_LINE_SIZE * 18
     add         tmp2, dst, tmp2
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 20
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 18
     add         dst, dst, CACHE_LINE_SIZE
     st1b        {z0.b}, p0, [dst, #-8, mul vl]
     st1b        {z0.b}, p0, [dst, #-7, mul vl]
@@ -307,10 +298,10 @@ L(L2_vl_16):  // VL16 unroll32
     st1b        {z0.b}, p0, [dst, #6, mul vl]
     st1b        {z0.b}, p0, [dst, #7, mul vl]
     add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 21
-    add         dst, dst, 128
-    sub         rest, rest, 512
-    cmp         rest, L2_SIZE
+    dc          zva, tmp2       // distance CACHE_LINE_SIZE * 19
+    add         dst, dst, CACHE_LINE_SIZE / 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
+    cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
 
 L(L1_prefetch): // if rest >= L1_SIZE
@@ -320,7 +311,7 @@ L(L1_vl_64):
     cmp         vector_length, 64
     b.ne        L(L1_vl_32)
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
     st1b        {z0.b}, p0, [dst, #2, mul vl]
@@ -337,8 +328,8 @@ L(L1_vl_64):
     prfm        pstl1keep, [dst, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
     prfm        pstl2keep, [dst, tmp1]
-    add         dst, dst, 512
-    sub         rest, rest, 512
+    add         dst, dst, CACHE_LINE_SIZE * 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
     cmp         rest, L1_SIZE
     b.ge        1b
 
@@ -346,7 +337,7 @@ L(L1_vl_32):
     cmp         vector_length, 32
     b.ne        L(L1_vl_16)
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
     st1b        {z0.b}, p0, [dst, #2, mul vl]
@@ -373,7 +364,7 @@ L(L1_vl_32):
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
     prfm        pstl2keep, [dst, tmp1]
     add         dst, dst, CACHE_LINE_SIZE
-    sub         rest, rest, 512
+    sub         rest, rest, CACHE_LINE_SIZE * 2
     cmp         rest, L1_SIZE
     b.ge        1b
 
@@ -381,9 +372,9 @@ L(L1_vl_16):  // VL16 unroll32
     cmp         vector_length, 16
     b.ne        L(vl_agnostic)
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  mov         tmp1, dst
-    add         dst, dst, 128
+    add         dst, dst, CACHE_LINE_SIZE / 2
     st1b        {z0.b}, p0, [dst, #-8, mul vl]
     st1b        {z0.b}, p0, [dst, #-7, mul vl]
     st1b        {z0.b}, p0, [dst, #-6, mul vl]
@@ -426,8 +417,8 @@ L(L1_vl_16):  // VL16 unroll32
     prfm        pstl1keep, [dst, tmp1]
     mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
     prfm        pstl2keep, [dst, tmp1]
-    add         dst, dst, 128
-    sub         rest, rest, 512
+    add         dst, dst, CACHE_LINE_SIZE / 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
     cmp         rest, L1_SIZE
     b.ge        1b
 
@@ -437,55 +428,27 @@ L(unroll32):
     ptrue       p0.b
     lsl         tmp1, vector_length, 3  // vector_length * 8
     lsl         tmp2, vector_length, 5  // vector_length * 32
-    .p2align 4
-1:  cmp         rest, tmp2
-    b.cc        L(unroll16)
-    st1b        {z0.b}, p0, [dst]
-    st1b        {z0.b}, p0, [dst, #1, mul vl]
-    st1b        {z0.b}, p0, [dst, #2, mul vl]
-    st1b        {z0.b}, p0, [dst, #3, mul vl]
-    st1b        {z0.b}, p0, [dst, #4, mul vl]
-    st1b        {z0.b}, p0, [dst, #5, mul vl]
-    st1b        {z0.b}, p0, [dst, #6, mul vl]
-    st1b        {z0.b}, p0, [dst, #7, mul vl]
-    add         dst, dst, tmp1
-    st1b        {z0.b}, p0, [dst]
-    st1b        {z0.b}, p0, [dst, #1, mul vl]
-    st1b        {z0.b}, p0, [dst, #2, mul vl]
-    st1b        {z0.b}, p0, [dst, #3, mul vl]
-    st1b        {z0.b}, p0, [dst, #4, mul vl]
-    st1b        {z0.b}, p0, [dst, #5, mul vl]
-    st1b        {z0.b}, p0, [dst, #6, mul vl]
-    st1b        {z0.b}, p0, [dst, #7, mul vl]
-    add         dst, dst, tmp1
-    st1b        {z0.b}, p0, [dst]
-    st1b        {z0.b}, p0, [dst, #1, mul vl]
-    st1b        {z0.b}, p0, [dst, #2, mul vl]
-    st1b        {z0.b}, p0, [dst, #3, mul vl]
-    st1b        {z0.b}, p0, [dst, #4, mul vl]
-    st1b        {z0.b}, p0, [dst, #5, mul vl]
-    st1b        {z0.b}, p0, [dst, #6, mul vl]
-    st1b        {z0.b}, p0, [dst, #7, mul vl]
-    add         dst, dst, tmp1
-    st1b        {z0.b}, p0, [dst]
-    st1b        {z0.b}, p0, [dst, #1, mul vl]
-    st1b        {z0.b}, p0, [dst, #2, mul vl]
-    st1b        {z0.b}, p0, [dst, #3, mul vl]
-    st1b        {z0.b}, p0, [dst, #4, mul vl]
-    st1b        {z0.b}, p0, [dst, #5, mul vl]
-    st1b        {z0.b}, p0, [dst, #6, mul vl]
-    st1b        {z0.b}, p0, [dst, #7, mul vl]
-    add         dst, dst, tmp1
-    sub         rest, rest, tmp2
-    b           1b
-
-L(unroll16):
-    ptrue       p0.b
-    lsl         tmp1, vector_length, 3  // vector_length * 8
-    lsl         tmp2, vector_length, 4  // vector_length * 16
-    .p2align 4
+    .p2align 3
 1:  cmp         rest, tmp2
     b.cc        L(unroll8)
+    st1b        {z0.b}, p0, [dst]
+    st1b        {z0.b}, p0, [dst, #1, mul vl]
+    st1b        {z0.b}, p0, [dst, #2, mul vl]
+    st1b        {z0.b}, p0, [dst, #3, mul vl]
+    st1b        {z0.b}, p0, [dst, #4, mul vl]
+    st1b        {z0.b}, p0, [dst, #5, mul vl]
+    st1b        {z0.b}, p0, [dst, #6, mul vl]
+    st1b        {z0.b}, p0, [dst, #7, mul vl]
+    add         dst, dst, tmp1
+    st1b        {z0.b}, p0, [dst]
+    st1b        {z0.b}, p0, [dst, #1, mul vl]
+    st1b        {z0.b}, p0, [dst, #2, mul vl]
+    st1b        {z0.b}, p0, [dst, #3, mul vl]
+    st1b        {z0.b}, p0, [dst, #4, mul vl]
+    st1b        {z0.b}, p0, [dst, #5, mul vl]
+    st1b        {z0.b}, p0, [dst, #6, mul vl]
+    st1b        {z0.b}, p0, [dst, #7, mul vl]
+    add         dst, dst, tmp1
     st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
     st1b        {z0.b}, p0, [dst, #2, mul vl]
@@ -510,9 +473,9 @@ L(unroll16):
 L(unroll8):
     lsl         tmp1, vector_length, 3
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  cmp         rest, tmp1
-    b.cc        L(unroll4)
+    b.cc        L(unroll1)
     st1b        {z0.b}, p0, [dst]
     st1b        {z0.b}, p0, [dst, #1, mul vl]
     st1b        {z0.b}, p0, [dst, #2, mul vl]
@@ -525,35 +488,9 @@ L(unroll8):
     sub         rest, rest, tmp1
     b           1b
 
-L(unroll4):
-    lsl         tmp1, vector_length, 2
-    ptrue       p0.b
-    .p2align 4
-1:  cmp         rest, tmp1
-    b.cc        L(unroll2)
-    st1b        {z0.b}, p0, [dst]
-    st1b        {z0.b}, p0, [dst, #1, mul vl]
-    st1b        {z0.b}, p0, [dst, #2, mul vl]
-    st1b        {z0.b}, p0, [dst, #3, mul vl]
-    add         dst, dst, tmp1
-    sub         rest, rest, tmp1
-    b           1b
-
-L(unroll2):
-    lsl         tmp1, vector_length, 1
-    ptrue       p0.b
-    .p2align 4
-1:  cmp         rest, tmp1
-    b.cc        L(unroll1)
-    st1b        {z0.b}, p0, [dst]
-    st1b        {z0.b}, p0, [dst, #1, mul vl]
-    add         dst, dst, tmp1
-    sub         rest, rest, tmp1
-    b           1b
-
 L(unroll1):
     ptrue       p0.b
-    .p2align 4
+    .p2align 3
 1:  cmp         rest, vector_length
     b.cc        L(last)
     st1b        {z0.b}, p0, [dst]
@@ -561,11 +498,13 @@ L(unroll1):
     add         dst, dst, vector_length
     b           1b
 
-    .p2align 4
+    .p2align 3
 L(last):
+    cmp         rest, 0
+    b.eq        1f
     whilelt     p0.b, xzr, rest
     st1b        z0.b, p0, [dst]
-    ret
+1:  ret
 
 END (MEMSET)
 libc_hidden_builtin_def (MEMSET)

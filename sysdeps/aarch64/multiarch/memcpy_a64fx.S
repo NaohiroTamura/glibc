@@ -579,7 +579,7 @@ L(bwd_unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
     .p2align 3
     cmp         rest, tmp1
-    b.cc        L(bwd_unroll1)
+    b.cc        L(bwd_unroll4)
     sub         src_ptr, src_ptr, tmp1
     ld1b_unroll8
     sub         rest, rest, tmp1
@@ -594,6 +594,46 @@ L(bwd_unroll8): // unrolling and software pipeline
     b.ge        1b
 2:  sub         dest_ptr, dest_ptr, tmp1
     st1b_unroll8
+
+L(bwd_unroll4):
+    lsl         tmp1, vector_length, 2  // vector_length * 4
+    .p2align 3
+    cmp         rest, tmp1
+    b.cc        L(bwd_unroll2)
+    sub         src_ptr, src_ptr, tmp1
+    ld1b_unroll4
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.cc        2f
+    .p2align 3
+1:  sub         src_ptr, src_ptr, tmp1
+    sub         dest_ptr, dest_ptr, tmp1
+    stld1b_unroll4a
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.ge        1b
+2:  sub         dest_ptr, dest_ptr, tmp1
+    st1b_unroll4
+
+L(bwd_unroll2):
+    lsl         tmp1, vector_length, 1  // vector_length * 2
+    .p2align 3
+    cmp         rest, tmp1
+    b.cc        L(bwd_unroll1)
+    sub         src_ptr, src_ptr, tmp1
+    ld1b_unroll2
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.cc        2f
+    .p2align 3
+1:  sub         src_ptr, src_ptr, tmp1
+    sub         dest_ptr, dest_ptr, tmp1
+    stld1b_unroll2
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.ge        1b
+2:  sub         dest_ptr, dest_ptr, tmp1
+    st1b_unroll2
 
 L(bwd_unroll1):
     .p2align 3

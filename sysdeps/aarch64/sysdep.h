@@ -97,6 +97,7 @@ GNU_PROPERTY (FEATURE_1_AND, FEATURE_1_BTI)
 #endif
 
 /* Define an entry point visible from C.  */
+#if HAVE_AARCH64_BTI
 #define ENTRY(name)						\
   .globl C_SYMBOL_NAME(name);					\
   .type C_SYMBOL_NAME(name),%function;				\
@@ -105,8 +106,18 @@ GNU_PROPERTY (FEATURE_1_AND, FEATURE_1_BTI)
   cfi_startproc;						\
   BTI_C;							\
   CALL_MCOUNT
+#else
+#define ENTRY(name)						\
+  .globl C_SYMBOL_NAME(name);					\
+  .type C_SYMBOL_NAME(name),%function;				\
+  .p2align 6;							\
+  C_LABEL(name)							\
+  cfi_startproc;						\
+  CALL_MCOUNT
+#endif
 
 /* Define an entry point visible from C.  */
+#if HAVE_AARCH64_BTI
 #define ENTRY_ALIGN(name, align)				\
   .globl C_SYMBOL_NAME(name);					\
   .type C_SYMBOL_NAME(name),%function;				\
@@ -115,12 +126,22 @@ GNU_PROPERTY (FEATURE_1_AND, FEATURE_1_BTI)
   cfi_startproc;						\
   BTI_C;							\
   CALL_MCOUNT
+#else
+#define ENTRY_ALIGN(name, align)				\
+  .globl C_SYMBOL_NAME(name);					\
+  .type C_SYMBOL_NAME(name),%function;				\
+  .p2align align;						\
+  C_LABEL(name)							\
+  cfi_startproc;						\
+  CALL_MCOUNT
+#endif
 
 /* Define an entry point visible from C with a specified alignment and
    pre-padding with NOPs.  This can be used to ensure that a critical
    loop within a function is cache line aligned.  Note this version
    does not adjust the padding if CALL_MCOUNT is defined. */
 
+#if HAVE_AARCH64_BTI
 #define ENTRY_ALIGN_AND_PAD(name, align, padding)		\
   .globl C_SYMBOL_NAME(name);					\
   .type C_SYMBOL_NAME(name),%function;				\
@@ -132,6 +153,18 @@ GNU_PROPERTY (FEATURE_1_AND, FEATURE_1_BTI)
   cfi_startproc;						\
   BTI_C;							\
   CALL_MCOUNT
+#else
+#define ENTRY_ALIGN_AND_PAD(name, align, padding)		\
+  .globl C_SYMBOL_NAME(name);					\
+  .type C_SYMBOL_NAME(name),%function;				\
+  .p2align align;						\
+  .rep padding - 1; /* -1 for bti c.  */			\
+  nop;								\
+  .endr;							\
+  C_LABEL(name)							\
+  cfi_startproc;						\
+  CALL_MCOUNT
+#endif
 
 #undef	END
 #define END(name)						\

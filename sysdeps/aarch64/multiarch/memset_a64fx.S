@@ -63,87 +63,24 @@ ENTRY_ALIGN (MEMSET, 6)
     PTR_ARG (0)
     SIZE_ARG (2)
 
-    cmp         count, 0
-    b.ne        L(init)
-    ret
-L(init):
-    mov         rest, count
+    cbz         count, 3f
+    dup         z0.b, valw
+    // shortcut for less than CACHE_LINE_SIZE 512B
+    cmp         count, CACHE_LINE_SIZE * 2
+    b.cs        1f
+    mov         tmp1, 0
+2:  whilelt     p1.b, tmp1, count
+    b.none      3f
+    st1b        z0.b, p1, [dstin, tmp1]
+    incb        tmp1
+    b           2b
+3:  ret
+    // equal to or more than CACHE_LINE_SIZE 512B
+1:  mov         rest, count
     mov         dst, dstin
     add         dstend, dstin, count
     cntb        vector_length
     ptrue       p0.b
-    dup         z0.b, valw
-
-    cmp         count, 96
-    b.hi	L(set_long)
-    cmp         count, 16
-    b.hs	L(set_medium)
-    mov         val, v0.D[0]
-
-    /* Set 0..15 bytes.  */
-    tbz         count, 3, 1f
-    str         val, [dstin]
-    str         val, [dstend, -8]
-    ret
-    nop
-1:  tbz         count, 2, 2f
-    str         valw, [dstin]
-    str         valw, [dstend, -4]
-    ret
-2:  cbz         count, 3f
-    strb        valw, [dstin]
-    tbz         count, 1, 3f
-    strh        valw, [dstend, -2]
-3:  ret
-
-    /* Set 17..96 bytes.  */
-L(set_medium):
-    str         q0, [dstin]
-    tbnz        count, 6, L(set96)
-    str         q0, [dstend, -16]
-    tbz         count, 5, 1f
-    str         q0, [dstin, 16]
-    str         q0, [dstend, -32]
-1:  ret
-
-    .p2align 4
-    /* Set 64..96 bytes.  Write 64 bytes from the start and
-       32 bytes from the end.  */
-L(set96):
-    str         q0, [dstin, 16]
-    stp         q0, q0, [dstin, 32]
-    stp         q0, q0, [dstend, -32]
-    ret
-
-L(set_long):
-    // if count > 1280 && vector_length != 16 then L(L2)
-    cmp         count, 1280
-    ccmp        vector_length, 16, 4, gt
-    b.ne        L(L2)
-    bic         dst, dstin, 15
-    str         q0, [dstin]
-    sub         count, dstend, dst      /* Count is 16 too large.  */
-    sub         dst, dst, 16            /* Dst is biased by -32.  */
-    sub         count, count, 64 + 16   /* Adjust count and bias for loop.  */
-1:  stp         q0, q0, [dst, 32]
-    stp         q0, q0, [dst, 64]!
-    subs        count, count, 64
-    b.lo        2f
-    stp         q0, q0, [dst, 32]
-    stp         q0, q0, [dst, 64]!
-    subs        count, count, 64
-    b.lo	2f
-    stp         q0, q0, [dst, 32]
-    stp         q0, q0, [dst, 64]!
-    subs        count, count, 64
-    b.lo        2f
-    stp         q0, q0, [dst, 32]
-    stp         q0, q0, [dst, 64]!
-    subs        count, count, 64
-    b.hi        1b
-2:  stp         q0, q0, [dstend, -64]
-    stp         q0, q0, [dstend, -32]
-    ret
 
 L(L2):
     // if rest >= L2_SIZE
@@ -158,8 +95,8 @@ L(L2):
     b.eq        1f
     sub         vl_remainder, vector_length, tmp2
     // process remainder until the first vector_length boundary
-    whilelt     p0.b, xzr, vl_remainder
-    st1b        z0.b, p0, [dst]
+    whilelt     p2.b, xzr, vl_remainder
+    st1b        z0.b, p2, [dst]
     add         dst, dst, vl_remainder
     sub         rest, rest, vl_remainder
     // align dstin address at CACHE_LINE_SIZE byte boundary
@@ -171,8 +108,8 @@ L(L2):
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
     mov         tmp1, xzr       // index
-2:  whilelt     p0.b, tmp1, cl_remainder
-    st1b        z0.b, p0, [dst, tmp1]
+2:  whilelt     p2.b, tmp1, cl_remainder
+    st1b        z0.b, p2, [dst, tmp1]
     incb        tmp1
     cmp         tmp1, cl_remainder
     b.lo        2b
@@ -186,7 +123,6 @@ L(L2_dc_zva): // unroll zero fill
 L(L2_vl_64): // VL64 unroll8
     cmp         vector_length, 64
     b.ne        L(L2_vl_32)
-    ptrue       p0.b
     .p2align 3
 1:  st1b_unroll 0, 3
     mov         tmp2, ZF_DIST
@@ -203,7 +139,6 @@ L(L2_vl_64): // VL64 unroll8
 L(L2_vl_32): // VL32 unroll6
     cmp         vector_length, 32
     b.ne        L(L2_vl_16)
-    ptrue       p0.b
     .p2align 3
 1:  st1b_unroll
     mov         tmp2, ZF_DIST
@@ -221,7 +156,6 @@ L(L2_vl_32): // VL32 unroll6
 L(L2_vl_16):  // VL16 unroll32
     cmp         vector_length, 16
     b.ne        L(L1_prefetch)
-    ptrue       p0.b
     .p2align 3
 1:  add         dst, dst, CACHE_LINE_SIZE / 2
     st1b_unroll -8, 7
@@ -243,7 +177,6 @@ L(L1_prefetch): // if rest >= L1_SIZE
 L(L1_vl_64):
     cmp         vector_length, 64
     b.ne        L(L1_vl_32)
-    ptrue       p0.b
     .p2align 3
 1:  st1b_unroll 0, 3
     mov         tmp1, PF_DIST_L1
@@ -263,7 +196,6 @@ L(L1_vl_64):
 L(L1_vl_32):
     cmp         vector_length, 32
     b.ne        L(L1_vl_16)
-    ptrue       p0.b
     .p2align 3
 1:  st1b_unroll
     mov         tmp1, PF_DIST_L1
@@ -284,7 +216,6 @@ L(L1_vl_32):
 L(L1_vl_16):  // VL16 unroll32
     cmp         vector_length, 16
     b.ne        L(vl_agnostic)
-    ptrue       p0.b
     .p2align 3
 1:  mov         tmp1, dst
     add         dst, dst, CACHE_LINE_SIZE / 2
@@ -308,7 +239,6 @@ L(L1_vl_16):  // VL16 unroll32
     // VL Agnostic
 L(vl_agnostic):
 L(unroll32):
-    ptrue       p0.b
     lsl         tmp1, vector_length, 3  // vector_length * 8
     lsl         tmp2, vector_length, 5  // vector_length * 32
     .p2align 3
@@ -327,17 +257,35 @@ L(unroll32):
 
 L(unroll8):
     lsl         tmp1, vector_length, 3
-    ptrue       p0.b
     .p2align 3
 1:  cmp         rest, tmp1
-    b.cc        L(unroll1)
+    b.cc        L(unroll4)
     st1b_unroll
     add         dst, dst, tmp1
     sub         rest, rest, tmp1
     b           1b
 
+L(unroll4):
+    lsl         tmp1, vector_length, 2
+    .p2align 3
+1:  cmp         rest, tmp1
+    b.cc        L(unroll2)
+    st1b_unroll 0, 3
+    add         dst, dst, tmp1
+    sub         rest, rest, tmp1
+    b           1b
+
+L(unroll2):
+    lsl         tmp1, vector_length, 1
+    .p2align 3
+1:  cmp         rest, tmp1
+    b.cc        L(unroll1)
+    st1b_unroll 0, 1
+    add         dst, dst, tmp1
+    sub         rest, rest, tmp1
+    b           1b
+
 L(unroll1):
-    ptrue       p0.b
     .p2align 3
 1:  cmp         rest, vector_length
     b.cc        L(last)
@@ -350,8 +298,8 @@ L(unroll1):
 L(last):
     cmp         rest, 0
     b.eq        1f
-    whilelt     p0.b, xzr, rest
-    st1b        z0.b, p0, [dst]
+    whilelt     p2.b, xzr, rest
+    st1b        z0.b, p2, [dst]
 1:  ret
 
 END (MEMSET)

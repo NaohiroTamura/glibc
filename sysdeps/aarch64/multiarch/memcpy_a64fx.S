@@ -59,14 +59,14 @@
     .endm
 
     .macro ld1b_unroll2
-     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-     ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+     ld1b        z0.b, p0/z, [src_ptr, #0, mul vl]
+     ld1b        z1.b, p0/z, [src_ptr, #1, mul vl]
     .endm
 
     .macro ld1b_unroll4
     ld1b_unroll2
-     ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-     ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+     ld1b        z2.b, p0/z, [src_ptr, #2, mul vl]
+     ld1b        z3.b, p0/z, [src_ptr, #3, mul vl]
     .endm
 
     .macro ld1b_unroll8
@@ -546,17 +546,138 @@ ENTRY_ALIGN (MEMMOVE, 6)
     SIZE_ARG (2)
 
     // remove tag address
-    and         tmp1, dest, 0xffffffffffffff
-    and         tmp2, src, 0xffffffffffffff
+    and         dest_ptr, dest, 0xffffffffffffff
+    and         src_ptr, src, 0xffffffffffffff
     cmp         n, 0
-    ccmp        tmp1, tmp2, 4, ne
+    ccmp        dest_ptr, src_ptr, 4, ne
     b.ne        1f
     ret
 1:  mov         rest, n
     cntb        vector_length
     ptrue       p0.b
+    // shortcut for less than vector_length * 4
+    cmp         rest, vector_length
+    b.hi        1f
+    whilelt     p1.b, xzr, rest
+    ld1b        z1.b, p1/z, [src]
+    st1b        z1.b, p1, [dest]
+    ret
+1:  lsl         tmp1, vector_length, 1          // vector_length * 2
+    cmp         rest, tmp1
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    sub         rest, rest, vector_length
+    whilelt     p1.b, xzr, rest
+    ld1b        z1.b, p1/z, [src, #1, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p1, [dest, #1, mul vl]
+    ret
+1:  add         tmp2, tmp1, vector_length       // vector_length * 3
+    cmp         rest, tmp2
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p0/z, [src, #1, mul vl]
+    sub         rest, rest, tmp1                // sub vector_length * 2
+    whilelt     p1.b, xzr, rest
+    ld1b        z2.b, p1/z, [src, #2, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p0, [dest, #1, mul vl]
+    st1b        z2.b, p1, [dest, #2, mul vl]
+    ret
+1:  add         tmp1, tmp2, vector_length       // vector_length * 4
+    cmp         rest, tmp1
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p0/z, [src, #1, mul vl]
+    ld1b        z2.b, p0/z, [src, #2, mul vl]
+    sub         rest, rest, tmp2                // sub vector_length * 3
+    whilelt     p1.b, xzr, rest
+    ld1b        z3.b, p1/z, [src, #3, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p0, [dest, #1, mul vl]
+    st1b        z2.b, p0, [dest, #2, mul vl]
+    st1b        z3.b, p1, [dest, #3, mul vl]
+    ret
+1:  add         tmp2, tmp1, vector_length       // vector_length * 5
+    cmp         rest, tmp2
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p0/z, [src, #1, mul vl]
+    ld1b        z2.b, p0/z, [src, #2, mul vl]
+    ld1b        z3.b, p0/z, [src, #3, mul vl]
+    sub         rest, rest, tmp1                // sub vector_length * 4
+    whilelt     p1.b, xzr, rest
+    ld1b        z4.b, p1/z, [src, #4, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p0, [dest, #1, mul vl]
+    st1b        z2.b, p0, [dest, #2, mul vl]
+    st1b        z3.b, p0, [dest, #3, mul vl]
+    st1b        z4.b, p1, [dest, #4, mul vl]
+    ret
+1:  add         tmp1, tmp2, vector_length       // vector_length * 6
+    cmp         rest, tmp1
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p0/z, [src, #1, mul vl]
+    ld1b        z2.b, p0/z, [src, #2, mul vl]
+    ld1b        z3.b, p0/z, [src, #3, mul vl]
+    ld1b        z4.b, p0/z, [src, #4, mul vl]
+    sub         rest, rest, tmp2                // sub vector_length * 5
+    whilelt     p1.b, xzr, rest
+    ld1b        z5.b, p1/z, [src, #5, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p0, [dest, #1, mul vl]
+    st1b        z2.b, p0, [dest, #2, mul vl]
+    st1b        z3.b, p0, [dest, #3, mul vl]
+    st1b        z4.b, p0, [dest, #4, mul vl]
+    st1b        z5.b, p1, [dest, #5, mul vl]
+    ret
+1:  add         tmp2, tmp1, vector_length       // vector_length * 7
+    cmp         rest, tmp2
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p0/z, [src, #1, mul vl]
+    ld1b        z2.b, p0/z, [src, #2, mul vl]
+    ld1b        z3.b, p0/z, [src, #3, mul vl]
+    ld1b        z4.b, p0/z, [src, #4, mul vl]
+    ld1b        z5.b, p0/z, [src, #5, mul vl]
+    sub         rest, rest, tmp1                // sub vector_length * 6
+    whilelt     p1.b, xzr, rest
+    ld1b        z6.b, p1/z, [src, #6, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p0, [dest, #1, mul vl]
+    st1b        z2.b, p0, [dest, #2, mul vl]
+    st1b        z3.b, p0, [dest, #3, mul vl]
+    st1b        z4.b, p0, [dest, #4, mul vl]
+    st1b        z5.b, p0, [dest, #5, mul vl]
+    st1b        z6.b, p1, [dest, #6, mul vl]
+    ret
+1:  add         tmp1, tmp2, vector_length       // vector_length * 8
+    cmp         rest, tmp1
+    b.hi        1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p0/z, [src, #1, mul vl]
+    ld1b        z2.b, p0/z, [src, #2, mul vl]
+    ld1b        z3.b, p0/z, [src, #3, mul vl]
+    ld1b        z4.b, p0/z, [src, #4, mul vl]
+    ld1b        z5.b, p0/z, [src, #5, mul vl]
+    ld1b        z6.b, p0/z, [src, #6, mul vl]
+    sub         rest, rest, tmp2                // sub vector_length * 7
+    whilelt     p1.b, xzr, rest
+    ld1b        z7.b, p1/z, [src, #7, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p0, [dest, #1, mul vl]
+    st1b        z2.b, p0, [dest, #2, mul vl]
+    st1b        z3.b, p0, [dest, #3, mul vl]
+    st1b        z4.b, p0, [dest, #4, mul vl]
+    st1b        z5.b, p0, [dest, #5, mul vl]
+    st1b        z6.b, p0, [dest, #6, mul vl]
+    st1b        z7.b, p1, [dest, #7, mul vl]
+    ret
+    // end of shortcut
+
     // tmp1 = dest - src
-    sub         tmp1, tmp1, tmp2
+1:  sub         tmp1, dest_ptr, src_ptr
     // tmp2 = src - dest
     neg         tmp2, tmp1
     cmp         tmp1, 0

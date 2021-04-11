@@ -31,7 +31,7 @@
  */
 
 #define L1_SIZE         (64*1024)/2     // L1 64KB/2
-#define L2_SIZE         (7*1024*1024)/2 // L2 (8MB - 1MB)/2
+#define L2_SIZE         (8*1024*1024)/2 // L2 8MB/2
 #define CACHE_LINE_SIZE 256
 #define PF_DIST_L1      (CACHE_LINE_SIZE * 16)  // Prefetch distance L1
 #define PF_DIST_L2      (CACHE_LINE_SIZE * 64)  // Prefetch distance L2
@@ -174,16 +174,23 @@
 ENTRY_ALIGN (MEMCPY, 6)
 
     PTR_ARG (0)
+    PTR_ARG (1)
     SIZE_ARG (2)
 
 L(memcpy):
-    // remove tag address
-    and         tmp1, dest, 0xffffffffffffff
-    and         tmp2, src, 0xffffffffffffff
-    cmp         n, 0
-    ccmp        tmp1, tmp2, 4, ne
-    b.ne        1f
-    ret
+    cbz         n, 3f
+    // shortcut for less than CACHE_LINE_SIZE 256B
+    cmp         n, CACHE_LINE_SIZE
+    b.cs        1f
+    mov         tmp1, 0
+2:  whilelt     p1.b, tmp1, n
+    b.none      3f
+    ld1b        z0.b, p1/z, [src, tmp1]
+    st1b        z0.b, p1, [dest, tmp1]
+    incb        tmp1
+    b           2b
+3:  ret
+    // equal to or more than CACHE_LINE_SIZE 256B
 1:  mov         rest, n
     mov         dest_ptr, dest
     mov         src_ptr, src
@@ -203,9 +210,9 @@ L(L2):
     b.eq        1f
     sub         vl_remainder, vector_length, tmp2
     // process remainder until the first vector_length boundary
-    whilelt     p0.b, xzr, vl_remainder
-    ld1b        z0.b, p0/z, [src_ptr]
-    st1b        z0.b, p0, [dest_ptr]
+    whilelt     p2.b, xzr, vl_remainder
+    ld1b        z0.b, p2/z, [src_ptr]
+    st1b        z0.b, p2, [dest_ptr]
     add         dest_ptr, dest_ptr, vl_remainder
     add         src_ptr, src_ptr, vl_remainder
     sub         rest, rest, vl_remainder
@@ -218,9 +225,9 @@ L(L2):
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
     mov         tmp1, xzr       // index
-2:  whilelt     p0.b, tmp1, cl_remainder
-    ld1b        z0.b, p0/z, [src_ptr, tmp1]
-    st1b        z0.b, p0, [dest_ptr, tmp1]
+2:  whilelt     p2.b, tmp1, cl_remainder
+    ld1b        z0.b, p2/z, [src_ptr, tmp1]
+    st1b        z0.b, p2, [dest_ptr, tmp1]
     incb        tmp1
     cmp         tmp1, cl_remainder
     b.lo        2b
@@ -241,7 +248,6 @@ L(L2_dc_zva): // unroll zero fill
 L(L2_vl_64): // VL64 unroll8
     cmp         vector_length, 64
     b.ne        L(L2_vl_32)
-    ptrue       p0.b
     .p2align 3
     ld1b_unroll8
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
@@ -273,7 +279,6 @@ L(L2_vl_64): // VL64 unroll8
 L(L2_vl_32): // VL32 unroll6
     cmp         vector_length, 32
     b.ne        L(L2_vl_16)
-    ptrue       p0.b
     .p2align 3
     ld1b_unroll8
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
@@ -307,7 +312,6 @@ L(L2_vl_32): // VL32 unroll6
 L(L2_vl_16): // VL16 unroll32
     cmp         vector_length, 16
     b.ne        L(L1_prefetch)
-    ptrue       p0.b
     .p2align 3
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     ld1b_unroll16
@@ -348,7 +352,6 @@ L(L1_prefetch): // if rest >= L1_SIZE
 L(L1_vl_64):
     cmp         vector_length, 64
     b.ne        L(L1_vl_32)
-    ptrue       p0.b
     .p2align 3
     ld1b_unroll8
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
@@ -381,7 +384,6 @@ L(L1_vl_64):
 L(L1_vl_32):
     cmp         vector_length, 32
     b.ne        L(L1_vl_16)
-    ptrue       p0.b
     .p2align 3
     ld1b_unroll8
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
@@ -416,7 +418,6 @@ L(L1_vl_32):
 L(L1_vl_16):
     cmp         vector_length, 16
     b.ne        L(vl_agnostic)
-    ptrue       p0.b
     .p2align 3
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     ld1b_unroll16
@@ -456,7 +457,6 @@ L(vl_agnostic): // VL Agnostic
 
 L(unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
-    ptrue       p0.b
     .p2align 3
     cmp         rest, tmp1
     b.cc        L(unroll4)
@@ -477,7 +477,6 @@ L(unroll8): // unrolling and software pipeline
 
 L(unroll4):
     lsl         tmp1, vector_length, 2  // vector_length * 4
-    ptrue       p0.b
     .p2align 3
     cmp         rest, tmp1
     b.cc        L(unroll2)
@@ -498,7 +497,6 @@ L(unroll4):
 
 L(unroll2):
     lsl         tmp1, vector_length, 1  // vector_length * 2
-    ptrue       p0.b
     .p2align 3
     cmp         rest, tmp1
     b.cc        L(unroll1)
@@ -518,7 +516,6 @@ L(unroll2):
     add         dest_ptr, dest_ptr, tmp1
 
 L(unroll1):
-    ptrue       p0.b
     .p2align 3
 1:  cmp         rest, vector_length
     b.cc        L(last)
@@ -533,17 +530,20 @@ L(unroll1):
 L(last):
     cmp         rest, 0
     b.eq        1f
-    whilelt     p0.b, xzr, rest
-    ld1b        z0.b, p0/z, [src_ptr]
-    st1b        z0.b, p0, [dest_ptr]
+    whilelt     p2.b, xzr, rest
+    ld1b        z0.b, p2/z, [src_ptr]
+    st1b        z0.b, p2, [dest_ptr]
 1:  ret
 
 END (MEMCPY)
 libc_hidden_builtin_def (MEMCPY)
 
 
-    .p2align 4
 ENTRY_ALIGN (MEMMOVE, 6)
+
+    PTR_ARG (0)
+    PTR_ARG (1)
+    SIZE_ARG (2)
 
     // remove tag address
     and         tmp1, dest, 0xffffffffffffff
@@ -648,11 +648,11 @@ L(bwd_unroll1):
 
     .p2align 3
 L(bwd_last):
-    whilelt     p0.b, xzr, rest
+    whilelt     p2.b, xzr, rest
     sub         src_ptr, src_ptr, rest
     sub         dest_ptr, dest_ptr, rest
-    ld1b        z0.b, p0/z, [src_ptr]
-    st1b        z0.b, p0, [dest_ptr]
+    ld1b        z0.b, p2/z, [src_ptr]
+    st1b        z0.b, p2, [dest_ptr]
     ret
 
 L(fwd_start):

@@ -58,11 +58,19 @@
     .endif
     .endm
 
+    .macro ld1b_unroll2
+     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
+     ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+    .endm
+
+    .macro ld1b_unroll4
+    ld1b_unroll2
+     ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
+     ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    .endm
+
     .macro ld1b_unroll8
-    ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
-    ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
-    ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
-    ld1b        z3.b, p0/z, [src_ptr,  #3, mul vl]
+    ld1b_unroll4
     ld1b        z4.b, p0/z, [src_ptr,  #4, mul vl]
     ld1b        z5.b, p0/z, [src_ptr,  #5, mul vl]
     ld1b        z6.b, p0/z, [src_ptr,  #6, mul vl]
@@ -81,11 +89,15 @@
     ld1b_unroll8
     .endm
 
-    .macro stld1b_unroll4a
+    .macro stld1b_unroll2
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
     ld1b        z0.b, p0/z, [src_ptr,  #0, mul vl]
     ld1b        z1.b, p0/z, [src_ptr,  #1, mul vl]
+    .endm
+
+    .macro stld1b_unroll4a
+    stld1b_unroll2
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
     ld1b        z2.b, p0/z, [src_ptr,  #2, mul vl]
@@ -128,11 +140,19 @@
     stld1b_unroll8
     .endm
 
-    .macro st1b_unroll8
+    .macro st1b_unroll2
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
+    .endm
+
+    .macro st1b_unroll4
+    st1b_unroll2
     st1b        z2.b, p0,   [dest_ptr, #2, mul vl]
     st1b        z3.b, p0,   [dest_ptr, #3, mul vl]
+    .endm
+
+    .macro st1b_unroll8
+    st1b_unroll4
     st1b        z4.b, p0,   [dest_ptr, #4, mul vl]
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
@@ -353,7 +373,7 @@ L(L1_vl_64):
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
+    cmp         rest, L1_SIZE
     b.ge        1b
 2:  st1b_unroll8
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
@@ -388,7 +408,7 @@ L(L1_vl_32):
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
     add         src_ptr, src_ptr, CACHE_LINE_SIZE
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
+    cmp         rest, L1_SIZE
     b.ge        1b
 2:  st1b_unroll8
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE
@@ -426,7 +446,7 @@ L(L1_vl_16):
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
+    cmp         rest, L1_SIZE
     b.ge        1b
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE / 2
 2:  st1b_unroll16
@@ -439,7 +459,7 @@ L(unroll8): // unrolling and software pipeline
     ptrue       p0.b
     .p2align 3
     cmp         rest, tmp1
-    b.cc        L(unroll1)
+    b.cc        L(unroll4)
     ld1b_unroll8
     add         src_ptr, src_ptr, tmp1
     sub         rest, rest, tmp1
@@ -455,7 +475,49 @@ L(unroll8): // unrolling and software pipeline
 2:  st1b_unroll8
     add         dest_ptr, dest_ptr, tmp1
 
- L(unroll1):
+L(unroll4):
+    lsl         tmp1, vector_length, 2  // vector_length * 4
+    ptrue       p0.b
+    .p2align 3
+    cmp         rest, tmp1
+    b.cc        L(unroll2)
+    ld1b_unroll4
+    add         src_ptr, src_ptr, tmp1
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.cc        2f
+    .p2align 3
+1:  stld1b_unroll4a
+    add         dest_ptr, dest_ptr, tmp1
+    add         src_ptr, src_ptr, tmp1
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.ge        1b
+2:  st1b_unroll4
+    add         dest_ptr, dest_ptr, tmp1
+
+L(unroll2):
+    lsl         tmp1, vector_length, 1  // vector_length * 2
+    ptrue       p0.b
+    .p2align 3
+    cmp         rest, tmp1
+    b.cc        L(unroll1)
+    ld1b_unroll2
+    add         src_ptr, src_ptr, tmp1
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.cc        2f
+    .p2align 3
+1:  stld1b_unroll2
+    add         dest_ptr, dest_ptr, tmp1
+    add         src_ptr, src_ptr, tmp1
+    sub         rest, rest, tmp1
+    cmp         rest, tmp1
+    b.ge        1b
+2:  st1b_unroll2
+    add         dest_ptr, dest_ptr, tmp1
+
+L(unroll1):
     ptrue       p0.b
     .p2align 3
 1:  cmp         rest, vector_length

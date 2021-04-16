@@ -58,7 +58,13 @@
     .endif
     .endm
 
-ENTRY_ALIGN (MEMSET, 6)
+// removed BTI_C from ENTRY (MEMSET)
+    .globl __memset_a64fx
+    .type __memset_a64fx, %function
+    .p2align 6
+__memset_a64fx:
+    cfi_startproc
+    CALL_MCOUNT
 
     PTR_ARG (0)
     SIZE_ARG (2)

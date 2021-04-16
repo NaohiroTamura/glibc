@@ -89,6 +89,9 @@ __memset_a64fx:
     ptrue       p0.b
 
 L(L2):
+    // if VL == 64
+    cmp         vector_length, 64
+    b.ne        L(vl_agnostic)
     // if rest >= L2_SIZE
     cmp         rest, L2_SIZE
     b.cc        L(L1_prefetch)
@@ -122,13 +125,11 @@ L(L2):
     add         dst, dst, cl_remainder
     sub         rest, rest, cl_remainder
 
-L(L2_dc_zva): // unroll zero fill
+L(L2_dc_zva):
+    // zero fill
     mov         tmp1, dst
     dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
-
-L(L2_vl_64): // VL64 unroll8
-    cmp         vector_length, 64
-    b.ne        L(L2_vl_32)
+    // unroll
     .p2align 3
 1:  st1b_unroll 0, 3
     mov         tmp2, ZF_DIST
@@ -138,41 +139,6 @@ L(L2_vl_64): // VL64 unroll8
     add         tmp2, tmp2, CACHE_LINE_SIZE
     dc          zva, tmp2
     add         dst, dst, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
-    b.ge        1b
-
-L(L2_vl_32): // VL32 unroll6
-    cmp         vector_length, 32
-    b.ne        L(L2_vl_16)
-    .p2align 3
-1:  st1b_unroll
-    mov         tmp2, ZF_DIST
-    add         tmp2, dst, tmp2
-    dc          zva, tmp2
-    add         dst, dst, CACHE_LINE_SIZE
-    st1b_unroll
-    add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2
-    add         dst, dst, CACHE_LINE_SIZE
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
-    b.ge        1b
-
-L(L2_vl_16):  // VL16 unroll32
-    cmp         vector_length, 16
-    b.ne        L(L1_prefetch)
-    .p2align 3
-1:  add         dst, dst, CACHE_LINE_SIZE / 2
-    st1b_unroll -8, 7
-    mov         tmp2, ZF_DIST
-    add         tmp2, dst, tmp2
-    dc          zva, tmp2
-    add         dst, dst, CACHE_LINE_SIZE
-    st1b_unroll -8, 7
-    add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2
-    add         dst, dst, CACHE_LINE_SIZE / 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
     cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
@@ -180,9 +146,6 @@ L(L2_vl_16):  // VL16 unroll32
 L(L1_prefetch): // if rest >= L1_SIZE
     cmp         rest, L1_SIZE
     b.cc        L(vl_agnostic)
-L(L1_vl_64):
-    cmp         vector_length, 64
-    b.ne        L(L1_vl_32)
     .p2align 3
 1:  st1b_unroll 0, 3
     mov         tmp1, PF_DIST_L1
@@ -199,51 +162,8 @@ L(L1_vl_64):
     cmp         rest, L1_SIZE
     b.ge        1b
 
-L(L1_vl_32):
-    cmp         vector_length, 32
-    b.ne        L(L1_vl_16)
-    .p2align 3
-1:  st1b_unroll
-    mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dst, tmp1]
-    mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dst, tmp1]
-    add         dst, dst, CACHE_LINE_SIZE
-    st1b_unroll
-    mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dst, tmp1]
-    mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dst, tmp1]
-    add         dst, dst, CACHE_LINE_SIZE
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L1_SIZE
-    b.ge        1b
+L(vl_agnostic): // VL Agnostic
 
-L(L1_vl_16):  // VL16 unroll32
-    cmp         vector_length, 16
-    b.ne        L(vl_agnostic)
-    .p2align 3
-1:  mov         tmp1, dst
-    add         dst, dst, CACHE_LINE_SIZE / 2
-    st1b_unroll -8, 7
-    mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dst, tmp1]
-    mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dst, tmp1]
-    add         dst, dst, CACHE_LINE_SIZE
-    add         tmp1, tmp1, CACHE_LINE_SIZE
-    st1b_unroll -8, 7
-    mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dst, tmp1]
-    mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dst, tmp1]
-    add         dst, dst, CACHE_LINE_SIZE / 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L1_SIZE
-    b.ge        1b
-
-    // VL Agnostic
-L(vl_agnostic):
 L(unroll32):
     lsl         tmp1, vector_length, 3  // vector_length * 8
     lsl         tmp2, vector_length, 5  // vector_length * 32

@@ -174,6 +174,14 @@
     .endm
 
     .macro shortcut_for_small_size exit
+    cmp         rest, vector_length
+    b.hi        1f
+    // if rest <= vector_length
+    whilelt     p1.b, xzr, rest
+    ld1b        z1.b, p1/z, [src_ptr]
+    st1b        z1.b, p1, [dest_ptr]
+    ret
+1:  // if rest > vector_length * 8
     lsl         tmp1, vector_length, 3
     cmp         rest, tmp1      // vector_length * 8
     b.hi        \exit
@@ -183,9 +191,7 @@
     lsl         tmp2, vector_length, 1
     cmp         rest, tmp2      // vector_length * 2
     b.hi        10f
-    cmp         rest, vector_length
-    b.hi        2f
-    b           1f
+    b           2f
 10: add         tmp2, tmp2, vector_length
     cmp         rest, tmp2      // vector_length * 3
     b.hi        4f
@@ -202,11 +208,6 @@
     cmp         rest, tmp1      //vector_length * 7
     b.hi        8f
     b           7f
-1:  // if rest <= vector_length
-    whilelt     p1.b, xzr, rest
-    ld1b        z1.b, p1/z, [src_ptr]
-    st1b        z1.b, p1, [dest_ptr]
-    ret
 2:  // if rest <= vector_length * 2
     ld1b        z0.b, p0/z, [src_ptr, #0, mul vl]
     sub         rest, rest, vector_length
@@ -304,7 +305,17 @@ L(memcpy):
     ptrue       p0.b
     // shortcut for less than vector_length * 8
     shortcut_for_small_size L(L2)
-    // end of shortcut
+/*    cmp         rest, CACHE_LINE_SIZE * 2
+    b.cs        L(L2)
+    mov         tmp1, 0
+2:  whilelt     p1.b, tmp1, rest
+    b.none      3f
+    ld1b        z0.b, p1/z, [src_ptr, tmp1]
+    st1b        z0.b, p1, [dest_ptr, tmp1]
+    incb        tmp1
+    b           2b
+3:  ret
+*/  // end of shortcut
 
 L(L2):
     // if VL == 64

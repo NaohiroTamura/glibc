@@ -175,24 +175,31 @@
 
     .macro shortcut_for_small_size exit
     cmp         rest, vector_length
-    b.hi        1f
-    // if rest <= vector_length
+    b.hi        2f
+1:  // if rest <= vector_length
     whilelt     p1.b, xzr, rest
     ld1b        z1.b, p1/z, [src_ptr]
     st1b        z1.b, p1, [dest_ptr]
     ret
-1:  // if rest > vector_length * 8
+2:  // if rest <= vector_length * 2
+    lsl         tmp2, vector_length, 1
+    cmp         rest, tmp2      // vector_length * 2
+    b.hi        10f
+    ld1b        z0.b, p0/z, [src_ptr, #0, mul vl]
+    sub         rest, rest, vector_length
+    whilelt     p1.b, xzr, rest
+    ld1b        z1.b, p1/z, [src_ptr, #1, mul vl]
+    st1b        z0.b, p0, [dest_ptr, #0, mul vl]
+    st1b        z1.b, p1, [dest_ptr, #1, mul vl]
+    ret
+10: // if rest > vector_length * 8
     lsl         tmp1, vector_length, 3
     cmp         rest, tmp1      // vector_length * 8
     b.hi        \exit
     lsl         tmp1, vector_length, 2
     cmp         rest, tmp1      // vector_length * 4
     b.hi        20f
-    lsl         tmp2, vector_length, 1
-    cmp         rest, tmp2      // vector_length * 2
-    b.hi        10f
-    b           2f
-10: add         tmp2, tmp2, vector_length
+    sub         tmp2, tmp1, vector_length
     cmp         rest, tmp2      // vector_length * 3
     b.hi        4f
     b           3f
@@ -208,14 +215,6 @@
     cmp         rest, tmp1      //vector_length * 7
     b.hi        8f
     b           7f
-2:  // if rest <= vector_length * 2
-    ld1b        z0.b, p0/z, [src_ptr, #0, mul vl]
-    sub         rest, rest, vector_length
-    whilelt     p1.b, xzr, rest
-    ld1b        z1.b, p1/z, [src_ptr, #1, mul vl]
-    st1b        z0.b, p0, [dest_ptr, #0, mul vl]
-    st1b        z1.b, p1, [dest_ptr, #1, mul vl]
-    ret
 3:  // if rest <= vector_length * 3
     ld1b_unroll2
     lsl         tmp1, vector_length, 1

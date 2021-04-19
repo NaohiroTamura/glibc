@@ -150,13 +150,9 @@ L(L1_prefetch): // if rest >= L1_SIZE
 1:  st1b_unroll 0, 3
     mov         tmp1, PF_DIST_L1
     prfm        pstl1keep, [dst, tmp1]
-    mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dst, tmp1]
     st1b_unroll 4, 7
     mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
     prfm        pstl1keep, [dst, tmp1]
-    mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dst, tmp1]
     add         dst, dst, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
     cmp         rest, L1_SIZE

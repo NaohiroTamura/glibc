@@ -30,7 +30,6 @@
  *
  */
 
-#define L1_SIZE         (64*1024)/2     // L1 64KB/2
 #define L2_SIZE         (8*1024*1024)/2 // L2 8MB/2
 #define CACHE_LINE_SIZE 256
 #define PF_DIST_L1      (CACHE_LINE_SIZE * 16)  // Prefetch distance L1
@@ -322,7 +321,7 @@ L(L2):
     b.ne        L(vl_agnostic)
     // if rest >= L2_SIZE
     cmp         rest, L2_SIZE
-    b.cc        L(L1_prefetch)
+    b.cc        L(vl_agnostic)
 
     // align dest address at vector_length byte boundary
     sub         tmp1, vector_length, 1
@@ -364,7 +363,7 @@ L(L2_dc_zva):
     sub         tmp1, src_notag, dest_notag     // diff
     mov         tmp2, ZF_DIST
     cmp         tmp1, tmp2
-    b.lo        L(L1_prefetch)
+    b.lo        L(vl_agnostic)
     mov         tmp1, dest_ptr
     dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
     // unroll
@@ -393,37 +392,6 @@ L(L2_dc_zva):
     cmp         rest, CACHE_LINE_SIZE * 2
     b.ge        1b
     st1b_unroll8
-    add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
-
-L(L1_prefetch): // if rest >= L1_SIZE
-    cmp         rest, L1_SIZE
-    b.cc        L(vl_agnostic)
-    ld1b_unroll8
-    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
-    b.cc        2f
-    .p2align 3
-1:  stld1b_unroll4a
-    mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dest_ptr, tmp1]
-    prfm        pldl1keep, [src_ptr, tmp1]
-    mov         tmp1, PF_DIST_L2
-    prfm        pstl2keep, [dest_ptr, tmp1]
-    prfm        pldl2keep, [src_ptr, tmp1]
-    stld1b_unroll4b
-    mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dest_ptr, tmp1]
-    prfm        pldl1keep, [src_ptr, tmp1]
-    mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pstl2keep, [dest_ptr, tmp1]
-    prfm        pldl2keep, [src_ptr, tmp1]
-    add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
-    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, L1_SIZE
-    b.ge        1b
-2:  st1b_unroll8
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
 
 L(vl_agnostic): // VL Agnostic

@@ -127,111 +127,49 @@
     .endm
 
     .macro shortcut_for_small_size exit
-    cmp         rest, vector_length
-    b.hi        2f
-1:  // if rest <= vector_length
-    whilelt     p1.b, xzr, rest
-    ld1b        z1.b, p1/z, [src_ptr]
-    st1b        z1.b, p1, [dest_ptr]
-    ret
-2:  // if rest <= vector_length * 2
-    lsl         tmp2, vector_length, 1
-    cmp         rest, tmp2      // vector_length * 2
-    b.hi        10f
+    // if rest <= vector_length * 2
+    whilelo     p1.b, vector_length, n
+    b.last      1f
     ld1b        z0.b, p0/z, [src_ptr, #0, mul vl]
-    sub         rest, rest, vector_length
-    whilelt     p1.b, xzr, rest
     ld1b        z1.b, p1/z, [src_ptr, #1, mul vl]
     st1b        z0.b, p0, [dest_ptr, #0, mul vl]
     st1b        z1.b, p1, [dest_ptr, #1, mul vl]
     ret
-10: // if rest > vector_length * 8
-    lsl         tmp1, vector_length, 3
-    cmp         rest, tmp1      // vector_length * 8
+1:  // if rest > vector_length * 8
+    cmp         n, vector_length, lsl 3 // vector_length * 8
     b.hi        \exit
-    lsl         tmp1, vector_length, 2
-    cmp         rest, tmp1      // vector_length * 4
-    b.hi        20f
-    sub         tmp2, tmp1, vector_length
-    cmp         rest, tmp2      // vector_length * 3
-    b.hi        4f
-    b           3f
-20: lsl         tmp2, vector_length, 1
-    add         tmp1, tmp1, tmp2
-    cmp         rest, tmp1      // vector_length * 6
-    b.hi        30f
-    sub         tmp1, tmp1, vector_length
-    cmp         rest, tmp1      // vector_length * 5
-    b.hi        6f
-    b           5f
-30: add         tmp1, tmp1, vector_length
-    cmp         rest, tmp1      //vector_length * 7
-    b.hi        8f
-    b           7f
-3:  // if rest <= vector_length * 3
+    // if rest <= vector_length * 4
+    lsl         tmp1, vector_length, 1  // vector_length * 2
+    whilelo     p2.b, tmp1, n
+    incb        tmp1
+    whilelo     p3.b, tmp1, n
+    b.last      1f
     ld1b_unroll2
-    lsl         tmp1, vector_length, 1
-    sub         rest, rest, tmp1                // sub vector_length * 2
-    whilelt     p1.b, xzr, rest
-    ld1b        z2.b, p1/z, [src_ptr, #2, mul vl]
+    ld1b        z2.b, p2/z, [src_ptr, #2, mul vl]
+    ld1b        z3.b, p3/z, [src_ptr, #3, mul vl]
     st1b_unroll2
-    st1b        z2.b, p1, [dest_ptr, #2, mul vl]
+    st1b        z2.b, p2, [dest_ptr, #2, mul vl]
+    st1b        z3.b, p3, [dest_ptr, #3, mul vl]
     ret
-4:  // if rest <= vector_length * 4
-    ld1b_unroll2
-    ld1b        z2.b, p0/z, [src_ptr, #2, mul vl]
-    sub         rest, rest, tmp2                // sub vector_length * 3
-    whilelt     p1.b, xzr, rest
-    ld1b        z3.b, p1/z, [src_ptr, #3, mul vl]
-    st1b_unroll2
-    st1b        z2.b, p0, [dest_ptr, #2, mul vl]
-    st1b        z3.b, p1, [dest_ptr, #3, mul vl]
-    ret
-5:  // if rest <= vector_length * 5
+1:  // if rest <= vector_length * 8
+    lsl         tmp1, vector_length, 2  // vector_length * 4
+    whilelo     p4.b, tmp1, n
+    incb        tmp1
+    whilelo     p5.b, tmp1, n
+    incb        tmp1
+    whilelo     p6.b, tmp1, n
+    incb        tmp1
+    whilelo     p7.b, tmp1, n
     ld1b_unroll4
-    lsl         tmp1, vector_length, 2
-    sub         rest, rest, tmp1                // sub vector_length * 4
-    whilelt     p1.b, xzr, rest
-    ld1b        z4.b, p1/z, [src_ptr, #4, mul vl]
+    ld1b        z4.b, p4/z, [src_ptr, #4, mul vl]
+    ld1b        z5.b, p5/z, [src_ptr, #5, mul vl]
+    ld1b        z6.b, p6/z, [src_ptr, #6, mul vl]
+    ld1b        z7.b, p7/z, [src_ptr, #7, mul vl]
     st1b_unroll4
-    st1b        z4.b, p1, [dest_ptr, #4, mul vl]
-    ret
-6:  // if rest <= vector_length * 6
-    ld1b_unroll4
-    ld1b        z4.b, p0/z, [src_ptr, #4, mul vl]
-    sub         rest, rest, tmp1                // sub vector_length * 5
-    whilelt     p1.b, xzr, rest
-    ld1b        z5.b, p1/z, [src_ptr, #5, mul vl]
-    st1b_unroll4
-    st1b        z4.b, p0, [dest_ptr, #4, mul vl]
-    st1b        z5.b, p1, [dest_ptr, #5, mul vl]
-    ret
-7:  // if rest <= vector_length * 7
-    ld1b_unroll4
-    ld1b        z4.b, p0/z, [src_ptr, #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr, #5, mul vl]
-    sub         tmp1, tmp1, vector_length
-    sub         rest, rest, tmp1                // sub vector_length * 6
-    whilelt     p1.b, xzr, rest
-    ld1b        z6.b, p1/z, [src_ptr, #6, mul vl]
-    st1b_unroll4
-    st1b        z4.b, p0, [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0, [dest_ptr, #5, mul vl]
-    st1b        z6.b, p1, [dest_ptr, #6, mul vl]
-    ret
-8:  // if rest <= vector_length * 8
-    ld1b_unroll4
-    ld1b        z4.b, p0/z, [src_ptr, #4, mul vl]
-    ld1b        z5.b, p0/z, [src_ptr, #5, mul vl]
-    ld1b        z6.b, p0/z, [src_ptr, #6, mul vl]
-    sub         rest, rest, tmp1                // sub vector_length * 7
-    whilelt     p1.b, xzr, rest
-    ld1b        z7.b, p1/z, [src_ptr, #7, mul vl]
-    st1b_unroll4
-    st1b        z4.b, p0, [dest_ptr, #4, mul vl]
-    st1b        z5.b, p0, [dest_ptr, #5, mul vl]
-    st1b        z6.b, p0, [dest_ptr, #6, mul vl]
-    st1b        z7.b, p1, [dest_ptr, #7, mul vl]
+    st1b        z4.b, p4, [dest_ptr, #4, mul vl]
+    st1b        z5.b, p5, [dest_ptr, #5, mul vl]
+    st1b        z6.b, p6, [dest_ptr, #6, mul vl]
+    st1b        z7.b, p7, [dest_ptr, #7, mul vl]
     ret
     .endm
 
@@ -254,12 +192,13 @@ L(memcpy):
     mov         dest_ptr, dest
     mov         src_ptr, src
     cntb        vector_length
-    ptrue       p0.b
+    whilelo     p0.b, xzr, n    // gives a free ptrue for N >= VL
     // shortcut for less than vector_length * 8
     shortcut_for_small_size L(L2)
     // end of shortcut
 
 L(L2):
+    ptrue       p0.b
     // if VL == 64
     cmp         vector_length, 64
     b.ne        L(vl_agnostic)
@@ -274,7 +213,7 @@ L(L2):
     cbz         tmp2, 1f
     sub         vl_remainder, vector_length, tmp2
     // process remainder until the first vector_length boundary
-    whilelt     p2.b, xzr, vl_remainder
+    whilelo     p2.b, xzr, vl_remainder
     ld1b        z0.b, p2/z, [src_ptr]
     st1b        z0.b, p2, [dest_ptr]
     add         dest_ptr, dest_ptr, vl_remainder
@@ -288,7 +227,7 @@ L(L2):
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
     mov         tmp1, xzr       // index
-2:  whilelt     p2.b, tmp1, cl_remainder
+2:  whilelo     p2.b, tmp1, cl_remainder
     ld1b        z0.b, p2/z, [src_ptr, tmp1]
     st1b        z0.b, p2, [dest_ptr, tmp1]
     incb        tmp1
@@ -404,7 +343,7 @@ L(unroll1):
     .p2align 3
 L(last):
     cbz         rest, 1f
-    whilelt     p2.b, xzr, rest
+    whilelo     p2.b, xzr, rest
     ld1b        z0.b, p2/z, [src_ptr]
     st1b        z0.b, p2, [dest_ptr]
 1:  ret
@@ -436,7 +375,7 @@ __memmove_a64fx:
     mov         dest_ptr, dest
     mov         src_ptr, src
     cntb        vector_length
-    ptrue       p0.b
+    whilelo     p0.b, xzr, n    // gives a free ptrue for N >= VL
     // shortcut for less than vector_length * 8
     shortcut_for_small_size L(dispatch)
     // end of shortcut
@@ -535,7 +474,7 @@ L(bwd_unroll1):
 
     .p2align 3
 L(bwd_last):
-    whilelt     p2.b, xzr, rest
+    whilelo     p2.b, xzr, rest
     sub         src_ptr, src_ptr, rest
     sub         dest_ptr, dest_ptr, rest
     ld1b        z0.b, p2/z, [src_ptr]

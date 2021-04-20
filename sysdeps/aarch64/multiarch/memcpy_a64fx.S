@@ -32,8 +32,6 @@
 
 #define L2_SIZE         (8*1024*1024)/2 // L2 8MB/2
 #define CACHE_LINE_SIZE 256
-#define PF_DIST_L1      (CACHE_LINE_SIZE * 16)  // Prefetch distance L1
-#define PF_DIST_L2      (CACHE_LINE_SIZE * 64)  // Prefetch distance L2
 #define ZF_DIST         (CACHE_LINE_SIZE * 18)  // Zerofill distance
 #define dest            x0
 #define src             x1
@@ -357,6 +355,10 @@ L(L2):
     sub         rest, rest, cl_remainder
 
 L(L2_dc_zva):
+    // unroll
+    ld1b_unroll8
+    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
     // zero fill
     and         dest_notag, dest, 0xffffffffffffff
     and         src_notag, src, 0xffffffffffffff
@@ -366,24 +368,12 @@ L(L2_dc_zva):
     b.lo        L(vl_agnostic)
     mov         tmp1, dest_ptr
     dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
-    // unroll
-    ld1b_unroll8
-    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
     .p2align 3
 1:  stld1b_unroll4a
-    mov         tmp1, PF_DIST_L1
-    prfm        pldl1keep, [src_ptr, tmp1]
-    mov         tmp1, PF_DIST_L2
-    prfm        pldl2keep, [src_ptr, tmp1]
     mov         tmp2, ZF_DIST
     add         tmp2, dest_ptr, tmp2
     dc          zva, tmp2
     stld1b_unroll4b
-    mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pldl1keep, [src_ptr, tmp1]
-    mov         tmp1, PF_DIST_L2 + CACHE_LINE_SIZE
-    prfm        pldl2keep, [src_ptr, tmp1]
     add         tmp2, tmp2, CACHE_LINE_SIZE
     dc          zva, tmp2
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2

@@ -76,18 +76,6 @@
     ld1b        z7.b, p0/z, [src_ptr,  #7, mul vl]
     .endm
 
-    .macro ld1b_unroll16
-    ld1b        z16.b, p0/z, [src_ptr, #-8, mul vl]
-    ld1b        z17.b, p0/z, [src_ptr, #-7, mul vl]
-    ld1b        z18.b, p0/z, [src_ptr, #-6, mul vl]
-    ld1b        z19.b, p0/z, [src_ptr, #-5, mul vl]
-    ld1b        z20.b, p0/z, [src_ptr, #-4, mul vl]
-    ld1b        z21.b, p0/z, [src_ptr, #-3, mul vl]
-    ld1b        z22.b, p0/z, [src_ptr, #-2, mul vl]
-    ld1b        z23.b, p0/z, [src_ptr, #-1, mul vl]
-    ld1b_unroll8
-    .endm
-
     .macro stld1b_unroll2
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
@@ -119,26 +107,6 @@
     stld1b_unroll4b
     .endm
 
-    .macro stld1b_unroll16
-    st1b        z16.b, p0,   [dest_ptr, #-8, mul vl]
-    st1b        z17.b, p0,   [dest_ptr, #-7, mul vl]
-    ld1b        z16.b, p0/z, [src_ptr,  #-8, mul vl]
-    ld1b        z17.b, p0/z, [src_ptr,  #-7, mul vl]
-    st1b        z18.b, p0,   [dest_ptr, #-6, mul vl]
-    st1b        z19.b, p0,   [dest_ptr, #-5, mul vl]
-    ld1b        z18.b, p0/z, [src_ptr,  #-6, mul vl]
-    ld1b        z19.b, p0/z, [src_ptr,  #-5, mul vl]
-    st1b        z20.b, p0,   [dest_ptr, #-4, mul vl]
-    st1b        z21.b, p0,   [dest_ptr, #-3, mul vl]
-    ld1b        z20.b, p0/z, [src_ptr,  #-4, mul vl]
-    ld1b        z21.b, p0/z, [src_ptr,  #-3, mul vl]
-    st1b        z22.b, p0,   [dest_ptr, #-2, mul vl]
-    st1b        z23.b, p0,   [dest_ptr, #-1, mul vl]
-    ld1b        z22.b, p0/z, [src_ptr,  #-2, mul vl]
-    ld1b        z23.b, p0/z, [src_ptr,  #-1, mul vl]
-    stld1b_unroll8
-    .endm
-
     .macro st1b_unroll2
     st1b        z0.b, p0,   [dest_ptr, #0, mul vl]
     st1b        z1.b, p0,   [dest_ptr, #1, mul vl]
@@ -156,18 +124,6 @@
     st1b        z5.b, p0,   [dest_ptr, #5, mul vl]
     st1b        z6.b, p0,   [dest_ptr, #6, mul vl]
     st1b        z7.b, p0,   [dest_ptr, #7, mul vl]
-    .endm
-
-    .macro st1b_unroll16
-    st1b        z16.b, p0, [dest_ptr, #-8, mul vl]
-    st1b        z17.b, p0, [dest_ptr, #-7, mul vl]
-    st1b        z18.b, p0, [dest_ptr, #-6, mul vl]
-    st1b        z19.b, p0, [dest_ptr, #-5, mul vl]
-    st1b        z20.b, p0, [dest_ptr, #-4, mul vl]
-    st1b        z21.b, p0, [dest_ptr, #-3, mul vl]
-    st1b        z22.b, p0, [dest_ptr, #-2, mul vl]
-    st1b        z23.b, p0, [dest_ptr, #-1, mul vl]
-    st1b_unroll8
     .endm
 
     .macro shortcut_for_small_size exit
@@ -301,17 +257,7 @@ L(memcpy):
     ptrue       p0.b
     // shortcut for less than vector_length * 8
     shortcut_for_small_size L(L2)
-/*    cmp         rest, CACHE_LINE_SIZE * 2
-    b.cs        L(L2)
-    mov         tmp1, 0
-2:  whilelt     p1.b, tmp1, rest
-    b.none      3f
-    ld1b        z0.b, p1/z, [src_ptr, tmp1]
-    st1b        z0.b, p1, [dest_ptr, tmp1]
-    incb        tmp1
-    b           2b
-3:  ret
-*/  // end of shortcut
+    // end of shortcut
 
 L(L2):
     // if VL == 64

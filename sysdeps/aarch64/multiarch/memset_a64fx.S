@@ -34,7 +34,6 @@
 #define L2_SIZE         (8*1024*1024)   // L2 8MB - 1MB
 #define CACHE_LINE_SIZE 256
 #define PF_DIST_L1      (CACHE_LINE_SIZE * 16)  // Prefetch distance L1
-#define PF_DIST_L2      (CACHE_LINE_SIZE * 128) // Prefetch distance L2
 #define ZF_DIST         (CACHE_LINE_SIZE * 18)  // Zerofill distance
 #define rest            x8
 #define vector_length   x9
@@ -100,8 +99,7 @@ L(L2):
     sub         tmp1, vector_length, 1
     and         tmp2, dst, tmp1
     // if vl_remainder == 0
-    cmp         tmp2, 0
-    b.eq        1f
+    cbz         tmp2, 1f
     sub         vl_remainder, vector_length, tmp2
     // process remainder until the first vector_length boundary
     whilelt     p2.b, xzr, vl_remainder
@@ -112,8 +110,7 @@ L(L2):
 1:  mov         tmp1, CACHE_LINE_SIZE
     and         tmp2, dst, CACHE_LINE_SIZE - 1
     // if cl_remainder == 0
-    cmp         tmp2, 0
-    b.eq        L(L2_dc_zva)
+    cbz         tmp2, L(L2_dc_zva)
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
     mov         tmp1, xzr       // index
@@ -148,11 +145,9 @@ L(L1_prefetch): // if rest >= L1_SIZE
     b.cc        L(vl_agnostic)
     .p2align 3
 1:  st1b_unroll 0, 3
-    mov         tmp1, PF_DIST_L1
-    prfm        pstl1keep, [dst, tmp1]
+    prfm        pstl1keep, [dst, PF_DIST_L1]
     st1b_unroll 4, 7
-    mov         tmp1, PF_DIST_L1 + CACHE_LINE_SIZE
-    prfm        pstl1keep, [dst, tmp1]
+    prfm        pstl1keep, [dst, PF_DIST_L1 + CACHE_LINE_SIZE]
     add         dst, dst, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
     cmp         rest, L1_SIZE
@@ -218,8 +213,7 @@ L(unroll1):
 
     .p2align 3
 L(last):
-    cmp         rest, 0
-    b.eq        1f
+    cbz         rest, 1f
     whilelt     p2.b, xzr, rest
     st1b        z0.b, p2, [dst]
 1:  ret

@@ -159,7 +159,23 @@
     whilelo     p4.b, tmp1, n
     incb        tmp1
     whilelo     p5.b, tmp1, n
-    incb        tmp1
+    b.last      1f
+    ld1b        z0.b, p0/z, [src, #0, mul vl]
+    ld1b        z1.b, p1/z, [src, #1, mul vl]
+    ld1b        z2.b, p2/z, [src, #2, mul vl]
+    ld1b        z3.b, p3/z, [src, #3, mul vl]
+    ld1b        z4.b, p4/z, [src, #4, mul vl]
+    ld1b        z5.b, p5/z, [src, #5, mul vl]
+    st1b        z0.b, p0, [dest, #0, mul vl]
+    st1b        z1.b, p1, [dest, #1, mul vl]
+    st1b        z2.b, p2, [dest, #2, mul vl]
+    st1b        z3.b, p3, [dest, #3, mul vl]
+    st1b        z4.b, p4, [dest, #4, mul vl]
+    st1b        z5.b, p5, [dest, #5, mul vl]
+    ret
+1:  lsl         tmp1, vector_length, 2  // vector_length * 4
+    incb        tmp1                    // vector_length * 5
+    incb        tmp1                    // vector_length * 6
     whilelo     p6.b, tmp1, n
     incb        tmp1
     whilelo     p7.b, tmp1, n

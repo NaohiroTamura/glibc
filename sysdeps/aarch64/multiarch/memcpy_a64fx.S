@@ -198,13 +198,7 @@
     ret
     .endm
 
-// removed BTI_C from ENTRY (MEMCPY)
-    .globl __memcpy_a64fx
-    .type __memcpy_a64fx, %function
-    .p2align 6
-__memcpy_a64fx:
-    cfi_startproc
-    CALL_MCOUNT
+ENTRY (MEMCPY)
 
     PTR_ARG (0)
     PTR_ARG (1)
@@ -374,13 +368,7 @@ END (MEMCPY)
 libc_hidden_builtin_def (MEMCPY)
 
 
-// removed BTI_C from ENTRY (MEMMOVE)
-    .globl __memmove_a64fx
-    .type __memmove_a64fx, %function
-    .p2align 6
-__memmove_a64fx:
-    cfi_startproc
-    CALL_MCOUNT
+ENTRY (MEMMOVE)
 
     PTR_ARG (0)
     PTR_ARG (1)

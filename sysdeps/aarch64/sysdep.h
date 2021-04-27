@@ -62,8 +62,13 @@ strip_pac (void *p)
 #define ASM_SIZE_DIRECTIVE(name) .size name,.-name
 
 /* Branch Target Identitication support.  */
+#if HAVE_AARCH64_BTI
 #define BTI_C		hint	34
 #define BTI_J		hint	36
+#else
+#define BTI_C
+#define BTI_J
+#endif
 
 /* Return address signing support (pac-ret).  */
 #define PACIASP		hint	25

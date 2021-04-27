@@ -34,7 +34,7 @@
 #define L2_SIZE         (8*1024*1024)   // L2 8MB - 1MB
 #define CACHE_LINE_SIZE 256
 #define PF_DIST_L1      (CACHE_LINE_SIZE * 16)  // Prefetch distance L1
-#define ZF_DIST         (CACHE_LINE_SIZE * 18)  // Zerofill distance
+#define ZF_DIST         (CACHE_LINE_SIZE * 21)  // Zerofill distance
 #define rest            x8
 #define vector_length   x9
 #define vl_remainder    x10     // vector_length remainder

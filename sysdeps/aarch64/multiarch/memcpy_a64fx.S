@@ -230,9 +230,9 @@ L(L2):
 
     // align dest address at vector_length byte boundary
     sub         tmp1, vector_length, 1
-    and         tmp2, dest_ptr, tmp1
+    ands        tmp2, dest_ptr, tmp1
     // if vl_remainder == 0
-    cbz         tmp2, 1f
+    b.eq        1f
     sub         vl_remainder, vector_length, tmp2
     // process remainder until the first vector_length boundary
     whilelo     p2.b, xzr, vl_remainder
@@ -243,9 +243,9 @@ L(L2):
     sub         rest, rest, vl_remainder
     // align dest address at CACHE_LINE_SIZE byte boundary
 1:  mov         tmp1, CACHE_LINE_SIZE
-    and         tmp2, dest_ptr, CACHE_LINE_SIZE - 1
+    ands        tmp2, dest_ptr, CACHE_LINE_SIZE - 1
     // if cl_remainder == 0
-    cbz         tmp2, L(L2_dc_zva)
+    b.eq        L(L2_dc_zva)
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
     mov         tmp1, xzr       // index

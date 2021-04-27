@@ -32,7 +32,7 @@
 
 #define L2_SIZE         (8*1024*1024)/2 // L2 8MB/2
 #define CACHE_LINE_SIZE 256
-#define ZF_DIST         (CACHE_LINE_SIZE * 18)  // Zerofill distance
+#define ZF_DIST         (CACHE_LINE_SIZE * 21)  // Zerofill distance
 #define dest            x0
 #define src             x1
 #define n               x2      // size

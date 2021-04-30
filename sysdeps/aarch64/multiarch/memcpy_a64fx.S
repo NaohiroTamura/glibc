@@ -188,82 +188,18 @@ L(memcpy):
     cntb        vector_length
     // shortcut for less than vector_length * 8
     // gives a free ptrue to p0.b for n >= vector_length
-    shortcut_for_small_size L(L2)
+    shortcut_for_small_size L(vl_agnostic)
     // end of shortcut
 
-L(L2):
+L(vl_agnostic): // VL Agnostic
     mov         rest, n
     mov         dest_ptr, dest
     mov         src_ptr, src
-    // if vector_length == 64
-    cmp         vector_length, 64
-    b.ne        L(vl_agnostic)
-    // if rest >= L2_SIZE
+    // if rest >= L2_SIZE && vector_length == 64 then L(L2)
+    mov         tmp1, 64
     cmp         rest, L2_SIZE
-    b.cc        L(vl_agnostic)
-
-    // align dest address at vector_length byte boundary
-    sub         tmp1, vector_length, 1
-    ands        tmp2, dest_ptr, tmp1
-    // if vl_remainder == 0
-    b.eq        1f
-    sub         vl_remainder, vector_length, tmp2
-    // process remainder until the first vector_length boundary
-    whilelo     p2.b, xzr, vl_remainder
-    ld1b        z0.b, p2/z, [src_ptr]
-    st1b        z0.b, p2, [dest_ptr]
-    add         dest_ptr, dest_ptr, vl_remainder
-    add         src_ptr, src_ptr, vl_remainder
-    sub         rest, rest, vl_remainder
-    // align dest address at CACHE_LINE_SIZE byte boundary
-1:  mov         tmp1, CACHE_LINE_SIZE
-    ands        tmp2, dest_ptr, CACHE_LINE_SIZE - 1
-    // if cl_remainder == 0
-    b.eq        L(L2_dc_zva)
-    sub         cl_remainder, tmp1, tmp2
-    // process remainder until the first CACHE_LINE_SIZE boundary
-    mov         tmp1, xzr       // index
-2:  whilelo     p2.b, tmp1, cl_remainder
-    ld1b        z0.b, p2/z, [src_ptr, tmp1]
-    st1b        z0.b, p2, [dest_ptr, tmp1]
-    incb        tmp1
-    cmp         tmp1, cl_remainder
-    b.lo        2b
-    add         dest_ptr, dest_ptr, cl_remainder
-    add         src_ptr, src_ptr, cl_remainder
-    sub         rest, rest, cl_remainder
-
-L(L2_dc_zva):
-    // unroll
-    ld1b_unroll8
-    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    // zero fill
-    and         dest_notag, dest, 0xffffffffffffff
-    and         src_notag, src, 0xffffffffffffff
-    sub         tmp1, src_notag, dest_notag     // diff
-    mov         tmp2, ZF_DIST
-    cmp         tmp1, tmp2
-    b.lo        L(vl_agnostic)
-    mov         tmp1, dest_ptr
-    dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
-    .p2align 3
-1:  stld1b_unroll4a
-    mov         tmp2, ZF_DIST
-    add         tmp2, dest_ptr, tmp2
-    dc          zva, tmp2
-    stld1b_unroll4b
-    add         tmp2, tmp2, CACHE_LINE_SIZE
-    dc          zva, tmp2
-    add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
-    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
-    b.ge        1b
-    st1b_unroll8
-    add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
-
-L(vl_agnostic): // VL Agnostic
+    ccmp        vector_length, tmp1, 0, cs
+    b.eq        L(L2)
 
 L(unroll8): // unrolling and software pipeline
     lsl         tmp1, vector_length, 3  // vector_length * 8
@@ -334,6 +270,69 @@ L(last):
     st1b        z6.b, p6, [dest_ptr, #6, mul vl]
     st1b        z7.b, p7, [dest_ptr, #7, mul vl]
     ret
+
+L(L2):
+    // align dest address at vector_length byte boundary
+    sub         tmp1, vector_length, 1
+    ands        tmp2, dest_ptr, tmp1
+    // if vl_remainder == 0
+    b.eq        1f
+    sub         vl_remainder, vector_length, tmp2
+    // process remainder until the first vector_length boundary
+    whilelo     p2.b, xzr, vl_remainder
+    ld1b        z0.b, p2/z, [src_ptr]
+    st1b        z0.b, p2, [dest_ptr]
+    add         dest_ptr, dest_ptr, vl_remainder
+    add         src_ptr, src_ptr, vl_remainder
+    sub         rest, rest, vl_remainder
+    // align dest address at CACHE_LINE_SIZE byte boundary
+1:  mov         tmp1, CACHE_LINE_SIZE
+    ands        tmp2, dest_ptr, CACHE_LINE_SIZE - 1
+    // if cl_remainder == 0
+    b.eq        L(L2_dc_zva)
+    sub         cl_remainder, tmp1, tmp2
+    // process remainder until the first CACHE_LINE_SIZE boundary
+    mov         tmp1, xzr       // index
+2:  whilelo     p2.b, tmp1, cl_remainder
+    ld1b        z0.b, p2/z, [src_ptr, tmp1]
+    st1b        z0.b, p2, [dest_ptr, tmp1]
+    incb        tmp1
+    cmp         tmp1, cl_remainder
+    b.lo        2b
+    add         dest_ptr, dest_ptr, cl_remainder
+    add         src_ptr, src_ptr, cl_remainder
+    sub         rest, rest, cl_remainder
+
+L(L2_dc_zva):
+    // unroll
+    ld1b_unroll8
+    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
+    // zero fill
+    and         dest_notag, dest, 0xffffffffffffff
+    and         src_notag, src, 0xffffffffffffff
+    sub         tmp1, src_notag, dest_notag     // diff
+    mov         tmp2, ZF_DIST
+    cmp         tmp1, tmp2
+    b.lo        L(unroll8)
+    mov         tmp1, dest_ptr
+    dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
+    .p2align 3
+1:  stld1b_unroll4a
+    mov         tmp2, ZF_DIST
+    add         tmp2, dest_ptr, tmp2
+    dc          zva, tmp2
+    stld1b_unroll4b
+    add         tmp2, tmp2, CACHE_LINE_SIZE
+    dc          zva, tmp2
+    add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
+    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
+    cmp         rest, CACHE_LINE_SIZE * 2
+    b.ge        1b
+    st1b_unroll8
+    add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
+    b           L(unroll8)
 
 END (MEMCPY)
 libc_hidden_builtin_def (MEMCPY)
@@ -409,7 +408,7 @@ L(fwd_start):
     mov         rest, n
     mov         dest_ptr, dest
     mov         src_ptr, src
-    b           L(vl_agnostic)
+    b           L(unroll8)
 
 END (MEMMOVE)
 libc_hidden_builtin_def (MEMMOVE)

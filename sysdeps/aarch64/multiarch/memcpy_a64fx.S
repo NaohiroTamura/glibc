@@ -42,9 +42,10 @@
 #define dest_ptr        x6
 #define src_ptr         x7
 #define vector_length   x8
-#define cl_remainder    x9      // CACHE_LINE_SIZE remainder
-#define dest_notag      x10
-#define src_notag       x11
+#define vl_remainder    x9      // vector_length remainder
+#define cl_remainder    x10     // CACHE_LINE_SIZE remainder
+#define dest_notag      x11
+#define src_notag       x12
 
     .arch armv8.2-a+sve
 
@@ -194,8 +195,21 @@ L(vl_agnostic): // VL Agnostic
     mov         rest, n
     mov         dest_ptr, dest
     mov         src_ptr, src
+    // align dest address at vector_length byte boundary
+    sub         tmp1, vector_length, 1
+    ands        tmp2, dest_ptr, tmp1
+    // if vl_remainder == 0
+    b.eq        1f
+    sub         vl_remainder, vector_length, tmp2
+    // process remainder until the first vector_length boundary
+    whilelo     p2.b, xzr, vl_remainder
+    ld1b        z0.b, p2/z, [src_ptr]
+    st1b        z0.b, p2, [dest_ptr]
+    add         dest_ptr, dest_ptr, vl_remainder
+    add         src_ptr, src_ptr, vl_remainder
+    sub         rest, rest, vl_remainder
     // if rest >= L2_SIZE && vector_length == 64 then L(L2)
-    mov         tmp1, 64
+1:  mov         tmp1, 64
     cmp         rest, L2_SIZE
     ccmp        vector_length, tmp1, 0, cs
     b.eq        L(L2)
@@ -288,12 +302,9 @@ L(L2):
     b           2f
 1:  lsl         tmp1, vector_length, 1  // vector_length * 2
     whilelo     p3.b, tmp1, cl_remainder
-    incb        tmp1
-    whilelo     p4.b, tmp1, cl_remainder
     ld1b        z1.b, p1/z, [src_ptr, #0, mul vl]
     ld1b        z2.b, p2/z, [src_ptr, #1, mul vl]
     ld1b        z3.b, p3/z, [src_ptr, #2, mul vl]
-    ld1b        z4.b, p4/z, [src_ptr, #3, mul vl]
     st1b        z1.b, p1, [dest_ptr, #0, mul vl]
     st1b        z2.b, p2, [dest_ptr, #1, mul vl]
     st1b        z3.b, p3, [dest_ptr, #2, mul vl]

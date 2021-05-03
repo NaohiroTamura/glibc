@@ -38,13 +38,12 @@
 #define n               x2      // size
 #define tmp1            x3
 #define tmp2            x4
-#define rest            x5
-#define dest_ptr        x6
-#define src_ptr         x7
-#define vector_length   x8
-#define cl_remainder    x9      // CACHE_LINE_SIZE remainder
-#define dest_notag      x10
-#define src_notag       x11
+#define tmp3            x5
+#define rest            x6
+#define dest_ptr        x7
+#define src_ptr         x8
+#define vector_length   x9
+#define cl_remainder    x10     // CACHE_LINE_SIZE remainder
 
     .arch armv8.2-a+sve
 
@@ -303,19 +302,21 @@ L(L2):
     sub         rest, rest, cl_remainder
 
 L(L2_dc_zva):
-    // unroll
-    ld1b_unroll8
-    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
-    sub         rest, rest, CACHE_LINE_SIZE * 2
     // zero fill
-    and         dest_notag, dest, 0xffffffffffffff
-    and         src_notag, src, 0xffffffffffffff
-    sub         tmp1, src_notag, dest_notag     // diff
-    mov         tmp2, ZF_DIST
+    and         tmp1, dest, 0xffffffffffffff
+    and         tmp2, src, 0xffffffffffffff
+    subs        tmp1, tmp1, tmp2     // diff
+    b.ge        1f
+    neg         tmp1, tmp1
+1:  mov         tmp2, ZF_DIST
     cmp         tmp1, tmp2
     b.lo        L(unroll8)
     mov         tmp1, dest_ptr
     dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
+    // unroll
+    ld1b_unroll8        // this line has to be after "b.lo L(unroll8)"
+    add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
+    sub         rest, rest, CACHE_LINE_SIZE * 2
     .p2align 3
 1:  stld1b_unroll4a
     mov         tmp2, ZF_DIST
@@ -344,34 +345,29 @@ ENTRY (MEMMOVE)
     SIZE_ARG (2)
 
     // remove tag address
-    and         dest_notag, dest, 0xffffffffffffff
-    and         src_notag, src, 0xffffffffffffff
+    // dest has to be immutable because it is the return value
+    // src has to be immutable because it is used in L(bwd_last)
+    and         tmp2, dest, 0xffffffffffffff    // save dest_notag into tmp2
+    and         tmp3, src, 0xffffffffffffff     // save src_notag intp tmp3
     cmp         n, 0
-    ccmp        dest_notag, src_notag, 4, ne
+    ccmp        tmp2, tmp3, 4, ne
     b.ne        1f
     ret
 1:  cntb        vector_length
     // shortcut for less than vector_length * 8
     // gives a free ptrue to p0.b for n >= vector_length
+    // tmp2 and tmp3 should not be used in this macro to keep notag addresses
     shortcut_for_small_size L(dispatch)
     // end of shortcut
 
 L(dispatch):
-    // tmp1 = dest - src
-    sub         tmp1, dest_notag, src_notag
-    // tmp2 = src - dest
-    neg         tmp2, tmp1
+    // tmp2 = dest_notag, tmp3 = src_notag
+    // diff = dest_notag - src_notag
+    sub         tmp1, tmp2, tmp3
+    // if diff <= 0 || diff >= n then memcpy
     cmp         tmp1, 0
-    b.gt        1f
-    // if src - dest > 0 and
-    // if src - dest >= n then memcpy else L(fwd_start)
-    cmp         tmp2, n
-    b.cs        L(memcpy)
-    b           L(fwd_start)
-    // if dest - src >= 0 and
-    // if dest - src >= n then memcpy else L(bwd_start)
-1:  cmp         tmp1, n
-    b.cs        L(memcpy)
+    ccmp        tmp1, n, 2, gt
+    b.cs        L(vl_agnostic)
 
 L(bwd_start):
     mov         rest, n
@@ -402,12 +398,6 @@ L(bwd_last):
     mov         dest_ptr, dest
     mov         src_ptr, src
     b           L(last)
-
-L(fwd_start):
-    mov         rest, n
-    mov         dest_ptr, dest
-    mov         src_ptr, src
-    b           L(unroll8)
 
 END (MEMMOVE)
 libc_hidden_builtin_def (MEMMOVE)

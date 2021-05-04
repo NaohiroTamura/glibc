@@ -278,11 +278,15 @@ L(L2):
     b.eq        L(L2_dc_zva)
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
-    mov         tmp1, xzr       // index
-    whilelo     p1.b, tmp1, cl_remainder        // keep p0.b all true
-    incb        tmp1
-    whilelo     p2.b, tmp1, cl_remainder
-    incb        tmp1
+    whilelo     p1.b, xzr, cl_remainder        // keep p0.b all true
+    whilelo     p2.b, vector_length, cl_remainder
+    b.last      1f
+    ld1b        z1.b, p1/z, [src_ptr, #0, mul vl]
+    ld1b        z2.b, p2/z, [src_ptr, #1, mul vl]
+    st1b        z1.b, p1, [dest_ptr, #0, mul vl]
+    st1b        z2.b, p2, [dest_ptr, #1, mul vl]
+    b           2f
+1:  lsl         tmp1, vector_length, 1  // vector_length * 2
     whilelo     p3.b, tmp1, cl_remainder
     incb        tmp1
     whilelo     p4.b, tmp1, cl_remainder
@@ -294,7 +298,7 @@ L(L2):
     st1b        z2.b, p2, [dest_ptr, #1, mul vl]
     st1b        z3.b, p3, [dest_ptr, #2, mul vl]
     st1b        z4.b, p4, [dest_ptr, #3, mul vl]
-    add         dest_ptr, dest_ptr, cl_remainder
+2:  add         dest_ptr, dest_ptr, cl_remainder
     add         src_ptr, src_ptr, cl_remainder
     sub         rest, rest, cl_remainder
 

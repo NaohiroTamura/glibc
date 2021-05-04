@@ -51,10 +51,62 @@
     .endm
 
     .macro st1b_unroll first=0, last=7
-    st1b        {z0.b}, p0, [dst, #\first, mul vl]
+    st1b        z0.b, p0, [dst, #\first, mul vl]
     .if \last-\first
     st1b_unroll "(\first+1)", \last
     .endif
+    .endm
+
+    .macro shortcut_for_small_size exit
+    // if rest <= vector_length * 2
+    whilelo     p0.b, xzr, count
+    whilelo     p1.b, vector_length, count
+    b.last      1f
+    st1b        z0.b, p0, [dstin, #0, mul vl]
+    st1b        z0.b, p1, [dstin, #1, mul vl]
+    ret
+1:  // if rest > vector_length * 8
+    cmp         count, vector_length, lsl 3     // vector_length * 8
+    b.hi        \exit
+    // if rest <= vector_length * 4
+    lsl         tmp1, vector_length, 1  // vector_length * 2
+    whilelo     p2.b, tmp1, count
+    incb        tmp1
+    whilelo     p3.b, tmp1, count
+    b.last      1f
+    st1b        z0.b, p0, [dstin, #0, mul vl]
+    st1b        z0.b, p1, [dstin, #1, mul vl]
+    st1b        z0.b, p2, [dstin, #2, mul vl]
+    st1b        z0.b, p3, [dstin, #3, mul vl]
+    ret
+1:  // if rest <= vector_length * 8
+    lsl         tmp1, vector_length, 2  // vector_length * 4
+    whilelo     p4.b, tmp1, count
+    incb        tmp1
+    whilelo     p5.b, tmp1, count
+    b.last      1f
+    st1b        z0.b, p0, [dstin, #0, mul vl]
+    st1b        z0.b, p1, [dstin, #1, mul vl]
+    st1b        z0.b, p2, [dstin, #2, mul vl]
+    st1b        z0.b, p3, [dstin, #3, mul vl]
+    st1b        z0.b, p4, [dstin, #4, mul vl]
+    st1b        z0.b, p5, [dstin, #5, mul vl]
+    ret
+1:  lsl         tmp1, vector_length, 2  // vector_length * 4
+    incb        tmp1                    // vector_length * 5
+    incb        tmp1                    // vector_length * 6
+    whilelo     p6.b, tmp1, count
+    incb        tmp1
+    whilelo     p7.b, tmp1, count
+    st1b        z0.b, p0, [dstin, #0, mul vl]
+    st1b        z0.b, p1, [dstin, #1, mul vl]
+    st1b        z0.b, p2, [dstin, #2, mul vl]
+    st1b        z0.b, p3, [dstin, #3, mul vl]
+    st1b        z0.b, p4, [dstin, #4, mul vl]
+    st1b        z0.b, p5, [dstin, #5, mul vl]
+    st1b        z0.b, p6, [dstin, #6, mul vl]
+    st1b        z0.b, p7, [dstin, #7, mul vl]
+    ret
     .endm
 
 ENTRY (MEMSET)
@@ -62,24 +114,19 @@ ENTRY (MEMSET)
     PTR_ARG (0)
     SIZE_ARG (2)
 
-    cbz         count, 3f
-    dup         z0.b, valw
-    // shortcut for less than CACHE_LINE_SIZE 512B
-    cmp         count, CACHE_LINE_SIZE * 2
-    b.cs        1f
-    mov         tmp1, 0
-2:  whilelt     p1.b, tmp1, count
-    b.none      3f
-    st1b        z0.b, p1, [dstin, tmp1]
-    incb        tmp1
-    b           2b
-3:  ret
-    // equal to or more than CACHE_LINE_SIZE 512B
-1:  mov         rest, count
+    cbnz        count, 1f
+    ret
+1:  dup         z0.b, valw
+    cntb        vector_length
+    // shortcut for less than vector_length * 8
+    // gives a free ptrue to p0.b for n >= vector_length
+    shortcut_for_small_size L(start)
+    // end of shortcut
+
+L(start):
+    mov         rest, count
     mov         dst, dstin
     add         dstend, dstin, count
-    cntb        vector_length
-    ptrue       p0.b
 
 L(L2):
     // if VL == 64
@@ -170,47 +217,46 @@ L(unroll8):
     lsl         tmp1, vector_length, 3
     .p2align 3
 1:  cmp         rest, tmp1
-    b.cc        L(unroll4)
+    b.cc        L(last)
     st1b_unroll
     add         dst, dst, tmp1
     sub         rest, rest, tmp1
     b           1b
 
-L(unroll4):
-    lsl         tmp1, vector_length, 2
-    .p2align 3
-1:  cmp         rest, tmp1
-    b.cc        L(unroll2)
-    st1b_unroll 0, 3
-    add         dst, dst, tmp1
-    sub         rest, rest, tmp1
-    b           1b
-
-L(unroll2):
-    lsl         tmp1, vector_length, 1
-    .p2align 3
-1:  cmp         rest, tmp1
-    b.cc        L(unroll1)
-    st1b_unroll 0, 1
-    add         dst, dst, tmp1
-    sub         rest, rest, tmp1
-    b           1b
-
-L(unroll1):
-    .p2align 3
-1:  cmp         rest, vector_length
-    b.cc        L(last)
-    st1b        {z0.b}, p0, [dst]
-    sub         rest, rest, vector_length
-    add         dst, dst, vector_length
-    b           1b
-
-    .p2align 3
 L(last):
-    cbz         rest, 1f
-    whilelt     p2.b, xzr, rest
-    st1b        z0.b, p2, [dst]
-1:  ret
+    whilelo     p0.b, xzr, rest
+    whilelo     p1.b, vector_length, rest
+    b.last      1f
+    st1b        z0.b, p0, [dst, #0, mul vl]
+    st1b        z0.b, p1, [dst, #1, mul vl]
+    ret
+1:  lsl         tmp1, vector_length, 1  // vector_length * 2
+    whilelo     p2.b, tmp1, rest
+    incb        tmp1
+    whilelo     p3.b, tmp1, rest
+    b.last      1f
+    st1b        z0.b, p0, [dst, #0, mul vl]
+    st1b        z0.b, p1, [dst, #1, mul vl]
+    st1b        z0.b, p2, [dst, #2, mul vl]
+    st1b        z0.b, p3, [dst, #3, mul vl]
+    ret
+1:  lsl         tmp1, vector_length, 2  // vector_length * 4
+    whilelo     p4.b, tmp1, rest
+    incb        tmp1
+    whilelo     p5.b, tmp1, rest
+    incb        tmp1
+    whilelo     p6.b, tmp1, rest
+    incb        tmp1
+    whilelo     p7.b, tmp1, rest
+    st1b        z0.b, p0, [dst, #0, mul vl]
+    st1b        z0.b, p1, [dst, #1, mul vl]
+    st1b        z0.b, p2, [dst, #2, mul vl]
+    st1b        z0.b, p3, [dst, #3, mul vl]
+    st1b        z0.b, p4, [dst, #4, mul vl]
+    st1b        z0.b, p5, [dst, #5, mul vl]
+    st1b        z0.b, p6, [dst, #6, mul vl]
+    st1b        z0.b, p7, [dst, #7, mul vl]
+    ret
 
 END (MEMSET)
 libc_hidden_builtin_def (MEMSET)

@@ -220,8 +220,8 @@ L(L2):
     b.eq        1f
     sub         vl_remainder, vector_length, tmp2
     // process remainder until the first vector_length boundary
-    whilelt     p2.b, xzr, vl_remainder
-    st1b        z0.b, p2, [dst]
+    whilelo     p1.b, xzr, vl_remainder
+    st1b        z0.b, p1, [dst]
     add         dst, dst, vl_remainder
     sub         rest, rest, vl_remainder
     // align dstin address at CACHE_LINE_SIZE byte boundary
@@ -232,11 +232,14 @@ L(L2):
     sub         cl_remainder, tmp1, tmp2
     // process remainder until the first CACHE_LINE_SIZE boundary
     mov         tmp1, xzr       // index
-2:  whilelt     p2.b, tmp1, cl_remainder
-    st1b        z0.b, p2, [dst, tmp1]
+    whilelo     p1.b, tmp1, cl_remainder
     incb        tmp1
-    cmp         tmp1, cl_remainder
-    b.lo        2b
+    whilelo     p2.b, tmp1, cl_remainder
+    incb        tmp1
+    whilelo     p3.b, tmp1, cl_remainder
+    st1b        z0.b, p1, [dst, #0, mul vl]
+    st1b        z0.b, p2, [dst, #1, mul vl]
+    st1b        z0.b, p3, [dst, #2, mul vl]
     add         dst, dst, cl_remainder
     sub         rest, rest, cl_remainder
 

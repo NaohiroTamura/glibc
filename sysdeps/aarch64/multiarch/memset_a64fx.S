@@ -213,19 +213,7 @@ L(L1_prefetch): // if rest >= L1_SIZE
     ret
 
 L(L2):
-    // align dst address at vector_length byte boundary
-    sub         tmp1, vector_length, 1
-    ands        tmp2, dst, tmp1
-    // if vl_remainder == 0
-    b.eq        1f
-    sub         vl_remainder, vector_length, tmp2
-    // process remainder until the first vector_length boundary
-    whilelo     p1.b, xzr, vl_remainder
-    st1b        z0.b, p1, [dst]
-    add         dst, dst, vl_remainder
-    sub         rest, rest, vl_remainder
-    // align dstin address at CACHE_LINE_SIZE byte boundary
-1:  mov         tmp1, CACHE_LINE_SIZE
+    mov         tmp1, CACHE_LINE_SIZE
     ands        tmp2, dst, CACHE_LINE_SIZE - 1
     // if cl_remainder == 0
     b.eq        L(L2_dc_zva)
@@ -237,9 +225,12 @@ L(L2):
     whilelo     p2.b, tmp1, cl_remainder
     incb        tmp1
     whilelo     p3.b, tmp1, cl_remainder
+    incb        tmp1
+    whilelo     p4.b, tmp1, cl_remainder
     st1b        z0.b, p1, [dst, #0, mul vl]
     st1b        z0.b, p2, [dst, #1, mul vl]
     st1b        z0.b, p3, [dst, #2, mul vl]
+    st1b        z0.b, p4, [dst, #3, mul vl]
     add         dst, dst, cl_remainder
     sub         rest, rest, cl_remainder
 

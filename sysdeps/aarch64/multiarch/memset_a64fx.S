@@ -213,28 +213,6 @@ L(L1_prefetch): // if rest >= L1_SIZE
     ret
 
 L(L2):
-    mov         tmp1, CACHE_LINE_SIZE
-    ands        tmp2, dst, CACHE_LINE_SIZE - 1
-    // if cl_remainder == 0
-    b.eq        L(L2_dc_zva)
-    sub         cl_remainder, tmp1, tmp2
-    // process remainder until the first CACHE_LINE_SIZE boundary
-    whilelo     p1.b, xzr, cl_remainder
-    whilelo     p2.b, vector_length, cl_remainder
-    b.last      1f
-    st1b        z0.b, p1, [dst, #0, mul vl]
-    st1b        z0.b, p2, [dst, #1, mul vl]
-    b           2f
-1:  lsl         tmp1, vector_length, 1  // vector_length * 2
-    whilelo     p3.b, tmp1, cl_remainder
-    incb        tmp1
-    whilelo     p4.b, tmp1, cl_remainder
-    st1b        z0.b, p1, [dst, #0, mul vl]
-    st1b        z0.b, p2, [dst, #1, mul vl]
-    st1b        z0.b, p3, [dst, #2, mul vl]
-    st1b        z0.b, p4, [dst, #3, mul vl]
-2:  add         dst, dst, cl_remainder
-    sub         rest, rest, cl_remainder
 
 L(L2_dc_zva):
     // zero fill

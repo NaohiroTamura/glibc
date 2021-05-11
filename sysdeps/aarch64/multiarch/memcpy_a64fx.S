@@ -308,8 +308,8 @@ L(L2_dc_zva):
     subs        tmp1, tmp1, tmp2     // diff
     b.ge        1f
     neg         tmp1, tmp1
-1:  mov         tmp2, ZF_DIST
-    cmp         tmp1, tmp2
+1:  mov         tmp3, ZF_DIST + CACHE_LINE_SIZE * 2
+    cmp         tmp1, tmp3
     b.lo        L(unroll8)
     mov         tmp1, dest_ptr
     dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
@@ -317,10 +317,10 @@ L(L2_dc_zva):
     ld1b_unroll8        // this line has to be after "b.lo L(unroll8)"
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
+    mov         tmp1, ZF_DIST
     .p2align 3
 1:  stld1b_unroll4a
-    mov         tmp2, ZF_DIST
-    add         tmp2, dest_ptr, tmp2
+    add         tmp2, dest_ptr, tmp1    // dest_ptr + ZF_DIST
     dc          zva, tmp2
     stld1b_unroll4b
     add         tmp2, tmp2, CACHE_LINE_SIZE
@@ -328,7 +328,7 @@ L(L2_dc_zva):
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2
     add         src_ptr, src_ptr, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
+    cmp         rest, tmp3      // ZF_DIST + CACHE_LINE_SIZE * 2
     b.ge        1b
     st1b_unroll8
     add         dest_ptr, dest_ptr, CACHE_LINE_SIZE * 2

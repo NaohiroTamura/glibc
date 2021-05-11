@@ -244,18 +244,19 @@ L(L2_dc_zva):
     // zero fill
     mov         tmp1, dst
     dc_zva      (ZF_DIST / CACHE_LINE_SIZE) - 1
+    mov         zva_len, ZF_DIST
+    add         tmp1, zva_len, CACHE_LINE_SIZE * 2
     // unroll
     .p2align 3
 1:  st1b_unroll 0, 3
-    mov         tmp2, ZF_DIST
-    add         tmp2, dst, tmp2
+    add         tmp2, dst, zva_len
     dc          zva, tmp2
     st1b_unroll 4, 7
     add         tmp2, tmp2, CACHE_LINE_SIZE
     dc          zva, tmp2
     add         dst, dst, CACHE_LINE_SIZE * 2
     sub         rest, rest, CACHE_LINE_SIZE * 2
-    cmp         rest, CACHE_LINE_SIZE * 2
+    cmp         rest, tmp1      // ZF_DIST + CACHE_LINE_SIZE * 2
     b.ge        1b
     cbnz        rest, L(unroll8)
     ret

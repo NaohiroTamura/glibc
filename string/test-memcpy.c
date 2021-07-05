@@ -304,6 +304,9 @@ test_main (void)
     }
 
   do_test (0, 0, getpagesize ());
+  do_test (0, 0, 1000); // A64FX VL Agnostic testcase
+  do_test (0, 0, 1100); // A64FX VL Agnostic testcase
+  do_test (0, 0, 1200); // A64FX VL Agnostic testcase
 
   do_random_tests ();
 

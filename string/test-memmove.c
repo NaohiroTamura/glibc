@@ -23,6 +23,7 @@
 #else
 # define TEST_NAME "memmove"
 #endif
+#include <stdbool.h>
 #include "test-string.h"
 #include <support/test-driver.h>
 
@@ -247,7 +248,7 @@ do_random_tests (void)
 }
 
 static void
-do_test2 (size_t offset)
+do_test2 (size_t offset, bool bkwd_cp)
 {
   size_t size = 0x20000000;
   uint32_t * large_buf;
@@ -276,8 +277,8 @@ do_test2 (size_t offset)
   size_t arr_size = bytes_move / sizeof (uint32_t);
   size_t i;
   size_t repeats;
-  uint32_t * src = large_buf;
-  uint32_t * dst = &large_buf[offset];
+  uint32_t * src = bkwd_cp ? large_buf : &large_buf[offset];
+  uint32_t * dst = bkwd_cp ? &large_buf[offset] : large_buf;
   for (repeats = 0; repeats < 2; ++repeats)
     {
       FOR_EACH_IMPL (impl, 0)
@@ -352,10 +353,11 @@ test_main (void)
 
   do_random_tests ();
 
-  do_test2 (33);
-  do_test2 (0x200000);
-  do_test2 (0x4000000 - 1);
-  do_test2 (0x4000000);
+  do_test2 (33, true);
+  do_test2 (0x200000, true);
+  do_test2 (0x4000000 - 1, true);
+  do_test2 (0x4000000, true);
+  do_test2 (1250, false); // A64FX zero fill overlap testcase
   return ret;
 }
 

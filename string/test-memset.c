@@ -234,6 +234,48 @@ do_random_tests (void)
 }
 #endif /* !TEST_BZERO */
 
+static void
+do_test1 (size_t size)
+{
+  void *large_buf;
+  large_buf = mmap (NULL, size  + page_size, PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANON, -1, 0);
+  if (large_buf == MAP_FAILED)
+    {
+      puts ("Failed to allocat large_buf, skipping do_test1");
+      return;
+    }
+
+  if (mprotect (large_buf + size, page_size, PROT_NONE))
+    error (EXIT_FAILURE, errno, "mprotect failed");
+
+  size_t arrary_size = size / sizeof (CHAR);
+  UCHAR *dest = large_buf;
+  size_t i;
+  size_t repeats;
+  int c = -65;
+  for(repeats = 0; repeats < 2; repeats++)
+    {
+      FOR_EACH_IMPL (impl, 0)
+        {
+	  printf ("\t\tRunning: %s\n", impl->name);
+          memset (dest, -1, size);
+          CALL (impl, (char *) dest, c, size);
+          for (i = 0; i < arrary_size; i++)
+	    if (dest[i] != c)
+	      {
+		error (0, 0,
+		       "Wrong result in function %s dst \"%p\" offset \"%zd\"",
+		       impl->name, dest, i);
+		ret = 1;
+		munmap ((void *) large_buf, size + page_size);
+		return;
+	      }
+        }
+    }
+  munmap ((void *) large_buf, size + page_size);
+}
+
 int
 test_main (void)
 {
@@ -271,6 +313,7 @@ test_main (void)
   do_random_tests ();
 #endif
 
+  do_test1 (0x300000000);
   return ret;
 }
 

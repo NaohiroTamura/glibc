@@ -31,6 +31,7 @@
 #define CACHE_LINE_SIZE	256
 #define PF_DIST_L1	(CACHE_LINE_SIZE * 16)	// Prefetch distance L1
 #define vector_length	x9
+#define tmp3	x10
 
 #if HAVE_AARCH64_SVE_ASM
 # if IS_IN (libc)
@@ -91,6 +92,24 @@ L(vl_agnostic):
 	cmp	count, L1_SIZE
 	ccmp	vector_length, tmp1, 0, cs
 	b.eq	L(L1_prefetch)
+
+L(unroll32):
+	lsl	tmp1, vector_length, 3	// vector_length * 8
+	lsl	tmp2, vector_length, 5	// vector_length * 32
+	add	tmp3, tmp1, tmp2
+	.p2align 4
+1:	cmp	count, tmp3
+	b.cc	L(unroll8)
+	st1b_unroll
+	add	dst, dst, tmp1
+	st1b_unroll
+	add	dst, dst, tmp1
+	st1b_unroll
+	add	dst, dst, tmp1
+	st1b_unroll
+	add	dst, dst, tmp1
+	sub	count, count, tmp2
+	b	1b
 
 	// count >= 8 * vector_length
 L(unroll8):

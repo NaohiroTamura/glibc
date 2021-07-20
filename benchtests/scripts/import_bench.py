@@ -101,13 +101,18 @@ def do_for_all_timings(bench, callback):
     Args:
         bench: The benchmark object
         callback: The callback function
+    Raises:
+        validator.exceptions.ValidationError: if 'timings' key not found
     """
     for func in bench['functions'].keys():
         for k in bench['functions'][func].keys():
-            if 'timings' not in bench['functions'][func][k].keys():
-                continue
-
-            callback(bench, func, k)
+            if k == 'results':
+                for r in range(len(bench['functions'][func][k])):
+                    if 'timings' not in bench['functions'][func][k][r].keys():
+                        raise validator.exceptions.ValidationError(
+                            "'timings' key not found")
+                    else:
+                        callback(bench, func, k, r)
 
 
 def compress_timings(points):
@@ -136,6 +141,6 @@ def parse_bench(filename, schema_filename):
         with open(filename, 'r') as benchfile:
             bench = json.load(benchfile)
             validator.validate(bench, schema)
-            do_for_all_timings(bench, lambda b, f, v:
-                    b['functions'][f][v]['timings'].sort())
+            do_for_all_timings(bench, lambda b, f, v, r:
+                    b['functions'][f][v][r]['timings'].sort())
             return bench

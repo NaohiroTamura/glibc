@@ -20,6 +20,7 @@
 #define TEST_NAME "memset"
 #define START_SIZE (16 * 1024)
 #define MIN_PAGE_SIZE (getpagesize () + 64 * 1024 * 1024)
+#define BUF1PAGES 16
 #define TIMEOUT (20 * 60)
 #include "bench-string.h"
 
@@ -32,30 +33,32 @@ IMPL (MEMSET, 1)
 IMPL (generic_memset, 0)
 
 static void
+__attribute__((noinline, noclone))
 do_one_test (json_ctx_t *json_ctx, impl_t *impl, CHAR *s,
 	     int c1 __attribute ((unused)), int c2 __attribute ((unused)),
 	     size_t n)
 {
-  size_t i, iters = 16;
-  timing_t start, stop, cur;
+  size_t i, j, iters = 32;
+  timing_t start, stop, cur, latency = 0;
 
-  TIMING_NOW (start);
-  for (i = 0; i < iters; i += 2)
+  for (i = 0; i < 2; i++)
     {
-      CALL (impl, s, c1, n);
-      CALL (impl, s, c2, n);
+      CALL (impl, s, c1, n * 16);
+      TIMING_NOW (start);
+      for (j = 0; j < 16; j++)
+        CALL (impl, s + n * j, c2, n);
+      TIMING_NOW (stop);
+      TIMING_DIFF (cur, start, stop);
+      TIMING_ACCUM (latency, cur);
     }
-  TIMING_NOW (stop);
 
-  TIMING_DIFF (cur, start, stop);
-
-  json_element_double (json_ctx, (double) cur / (double) iters);
+  json_element_double (json_ctx, (double) latency / (double) iters);
 }
 
 static void
 do_test (json_ctx_t *json_ctx, size_t align, int c1, int c2, size_t len)
 {
-  align &= 63;
+  align &= getpagesize () - 1;
   if ((align + len) * sizeof (CHAR) > page_size)
     return;
 

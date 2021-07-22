@@ -1508,25 +1508,6 @@ if test $libc_cv_have_section_quotes = yes; then
   AC_DEFINE(HAVE_SECTION_QUOTES)
 fi
 
-AC_CACHE_CHECK(for __builtin_memset, libc_cv_gcc_builtin_memset, [dnl
-cat > conftest.c <<\EOF
-void zero (void *x)
-{
-  __builtin_memset (x, 0, 1000);
-}
-EOF
-dnl
-if AC_TRY_COMMAND([${CC-cc} -O3 -S conftest.c -o - | grep -F "memset" > /dev/null]);
-then
-  libc_cv_gcc_builtin_memset=no
-else
-  libc_cv_gcc_builtin_memset=yes
-fi
-rm -f conftest* ])
-if test "$libc_cv_gcc_builtin_memset" = yes ; then
-  AC_DEFINE(HAVE_BUILTIN_MEMSET)
-fi
-
 AC_CACHE_CHECK(for redirection of built-in functions, libc_cv_gcc_builtin_redirection, [dnl
 cat > conftest.c <<\EOF
 extern char *strstr (const char *, const char *) __asm ("my_strstr");

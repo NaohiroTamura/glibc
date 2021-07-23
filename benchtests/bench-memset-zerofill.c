@@ -43,7 +43,7 @@ do_one_test (json_ctx_t *json_ctx, impl_t *impl, CHAR *s,
 
   for (i = 0; i < 2; i++)
     {
-      CALL (impl, s, c1, n * 16);
+      __builtin_memset (s, c1, n * 16);
       TIMING_NOW (start);
       for (j = 0; j < 16; j++)
         CALL (impl, s + n * j, c2, n);

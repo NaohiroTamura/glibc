@@ -33,25 +33,34 @@ fi
 
 jq -rs --arg ifunc_name $1 --arg graph_tag1 $2 --arg graph_tag2 $3 '
 . as $root |
-.[0] as $first |
-$first.functions.memset.ifuncs |
+$root as [$first, $second] |
+$first.functions |
+  to_entries | . as $first_entry |
+  .[0].value as $first_value |
+$second.functions |
+  to_entries | .[0].value as $second_value |
+$first_value.ifuncs |
   length as $ifuncs_len |
   index($ifunc_name) as $ifunc_index |
-$root |
-  del(.[].functions.memset.results[].timings[$ifunc_index+1:$ifuncs_len]) |
-  del(.[].functions.memset.results[].timings[0:$ifunc_index]) | 
-  [.[].functions.memset.results] | transpose as $pair |
+[$first_value, $second_value] |
+  del(.[].results[].timings[$ifunc_index+1:$ifuncs_len]) |
+  del(.[].results[].timings[0:$ifunc_index]) |
+  [.[].results] | transpose as $pair |
 $pair |
   reduce range(0; $pair|length) as $i (
     []; . + [$pair[$i][0].timings+$pair[$i][1].timings]
-  ) | . as $newtimings |
+  ) | . as $new_timings |
   reduce range(0; $pair|length) as $j (
-    []; . + [{"length":$first.functions.memset.results[$j].length,
-              "timings":$newtimings[$j]}]
-  ) | . as $newresults |
+    []; . + [{"length":$first_value.results[$j].length,
+              "timings":$new_timings[$j]}]
+  ) | . as $new_results |
+$first_value |
+  ."bench-variant"+="-"+$graph_tag1+"-"+$graph_tag2 |
+  .ifuncs=[$ifunc_name+"-"+$graph_tag1,$ifunc_name+"-"+$graph_tag2] |
+  .results=$new_results | . as $new_first_value |
+$first_entry |
+  .[0].value=$new_first_value | from_entries | . as $mem_func |
 $first |
-  .functions.memset."bench-variant"+="-"+$graph_tag1+"-"+$graph_tag2 |
-  .functions.memset.ifuncs=[$ifunc_name+"-"+$graph_tag1,$ifunc_name+"-"+$graph_tag2] |
-  .functions.memset.results=$newresults
+  .functions=$mem_func
 '
 

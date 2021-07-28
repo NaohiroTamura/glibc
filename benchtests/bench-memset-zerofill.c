@@ -20,7 +20,6 @@
 #define TEST_NAME "memset"
 #define START_SIZE (16 * 1024)
 #define MIN_PAGE_SIZE (getpagesize () + 64 * 1024 * 1024)
-#define BUF1PAGES 16
 #define TIMEOUT (20 * 60)
 #include "bench-string.h"
 
@@ -38,15 +37,19 @@ do_one_test (json_ctx_t *json_ctx, impl_t *impl, CHAR *s,
 	     int c1 __attribute ((unused)), int c2 __attribute ((unused)),
 	     size_t n)
 {
-  size_t i, j, iters = 32;
+  size_t i, iters = 32;
   timing_t start, stop, cur, latency = 0;
 
-  for (i = 0; i < 2; i++)
+  CALL (impl, s, c2, n); // warm up
+
+  for (i = 0; i < iters; i++)
     {
-      __builtin_memset (s, c1, n * 16);
+      memset (s, c1, n); // alternation
+
       TIMING_NOW (start);
-      for (j = 0; j < 16; j++)
-        CALL (impl, s + n * j, c2, n);
+
+      CALL (impl, s, c2, n);
+
       TIMING_NOW (stop);
       TIMING_DIFF (cur, start, stop);
       TIMING_ACCUM (latency, cur);

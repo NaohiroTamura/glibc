@@ -18,7 +18,7 @@
 
 #define TEST_MAIN
 #define TEST_NAME "memset"
-#define START_SIZE (16 * 1024)
+#define START_SIZE 256
 #define MIN_PAGE_SIZE (getpagesize () + 64 * 1024 * 1024)
 #define TIMEOUT (20 * 60)
 #include "bench-string.h"
@@ -107,13 +107,13 @@ test_main (void)
 
   json_array_begin (&json_ctx, "results");
 
-  c2 = 0;
   for (c1 = 0; c1 < 2; c1++)
-    for (i = START_SIZE; i <= MIN_PAGE_SIZE; i <<= 1)
-      {
-	do_test (&json_ctx, 0, c1, c2, i);
-	do_test (&json_ctx, 3, c1, c2, i);
-      }
+    for (c2 = 0; c2 < 2; c2++)
+      for (i = START_SIZE; i <= MIN_PAGE_SIZE; i <<= 1)
+	{
+	  do_test (&json_ctx, 0, c1, c2, i);
+	  do_test (&json_ctx, 3, c1, c2, i);
+	}
 
   json_array_end (&json_ctx);
   json_attr_object_end (&json_ctx);

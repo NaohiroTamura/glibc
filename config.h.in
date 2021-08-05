@@ -40,8 +40,8 @@
    shared between GNU libc and GNU gettext projects.  */
 #define HAVE_BUILTIN_EXPECT 1
 
-/* Define if the compiler supports __builtin_memset.  */
-#undef	HAVE_BUILTIN_MEMSET
+/* Define if the compiler supports non lib expand __builtin_memset.  */
+#undef	HAVE_NON_LIB_EXPAND_BUILTIN_MEMSET
 
 /* Define if compiler accepts -ftree-loop-distribute-patterns.  */
 #undef  HAVE_CC_INHIBIT_LOOP_TO_LIBCALL

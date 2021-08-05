@@ -527,11 +527,12 @@ _dl_start (void *arg)
   /* Partly clean the `bootstrap_map' structure up.  Don't use
      `memset' since it might not be built in or inlined and we cannot
      make function calls at this point.  Use '__builtin_memset' if we
-     know it is available.  We do not have to clear the memory if we
-     do not have to use the temporary bootstrap_map.  Global variables
-     are initialized to zero by default.  */
+     know it is available and does not expand to a memset libcall.
+     We do not have to clear the memory if we do not have to use the
+     temporary bootstrap_map.  Global variables are initialized to
+     zero by default.  */
 #ifndef DONT_USE_BOOTSTRAP_MAP
-# ifdef HAVE_BUILTIN_MEMSET
+# ifdef HAVE_NON_LIB_EXPAND_BUILTIN_MEMSET
   __builtin_memset (bootstrap_map.l_info, '\0', sizeof (bootstrap_map.l_info));
 # else
   for (size_t cnt = 0;

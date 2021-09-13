@@ -104,10 +104,7 @@ def do_for_all_timings(bench, callback):
     """
     for func in bench['functions'].keys():
         for k in bench['functions'][func].keys():
-            try:
-                if 'timings' not in bench['functions'][func][k].keys():
-                    continue
-            except AttributeError:
+            if 'timings' not in bench['functions'][func][k].keys():
                 continue
 
             callback(bench, func, k)
